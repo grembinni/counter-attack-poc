@@ -1,192 +1,159 @@
 # Project Research Summary
 
-**Project:** Counter Attack POC — v1.7 (UI/UX Consistency, Substitution Rework & Match Summary)
-**Domain:** Feature-addition milestone on an existing, shipped, server-authoritative real-time hex-grid football game (Node.js/Socket.io + React monorepo)
-**Researched:** 2026-08-21
+**Project:** Counter Attack POC (v1.8 - Roster Interaction Overhaul and Rules Audit)
+**Domain:** Subsequent-milestone integration work on a mature, server-authoritative real-time hex-grid football game: roster interaction UX rework, rules-engine sequencing fixes, and a rules-fidelity audit
+**Researched:** 2026-08-30
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is not greenfield work — it is a polish/consistency milestone layered onto a mature, already-shipped codebase (React 18 + Zustand 4 + Socket.io 4 + hand-written shared TypeScript hex math, full-state-snapshot broadcast). All research this round was grounded in direct inspection of the actual shipped code. The unanimous conclusion across all four research files: no new npm dependencies are needed. All six target features (referee-leniency override, unified card/injury iconography, an Advanced settings drawer, a substitution UX overhaul, a tackle/steal decline-and-retry toggle, and an on-demand match-summary/xG popup) are buildable by extending patterns already proven in this codebase.
+v1.8 is not a green-field build; it is five targeted changes plus one audit deliverable layered onto an established React/Zustand/Socket.io/Node engine (gameEngine.ts, 10,849 lines, pure-function FSM) that has already solved the general shape of every problem this milestone raises. No new libraries or architecture are needed; every recommendation in STACK.md is to reuse the pattern that already exists (click-to-select via a SelectionState-style union, useGameStore for cross-component state, HIGHLIGHT_STYLES-table-driven CSS). The work is entirely about correctly locating and extending existing mechanisms without breaking their existing invariants.
 
-The recommended approach is six semi-independent feature slices plus one embedded cross-cutting bug-fix (red-carded players still triggering deflections/ZoI steals — a confirmed, currently-live bug), sequenced by dependency and risk rather than request order. The highest-risk item is the Substitution UX overhaul: it adds a second, coexisting interaction mode to an already-tested component (LineupAssignmentScreen.tsx), risking regression to existing SUB-02..07 guards. The second-highest risk is the tackle/steal decline mechanic, genuinely novel engine state with no code path or genre precedent to extend from.
+The recommended approach is: (1) replace the roster screens two drag-and-drop sub-modes (reposition, substitute) with click-to-select, keeping the two modes eligibility/guard logic in separate functions exactly as the drag implementation already does; this is the single highest-risk item and should be built and stabilized first, in isolation, before anything else touches the same files; (2) make jersey numbers travel with the player, not the formation slot, which requires touching not just the assignment site but every one of the 4+ applyRosterContinuity reset call sites (goal, penalty, half-time) or the fix will silently regress on the first goal; (3) resequence the GK box-entry offer to fire before an outside-the-box shots dive resolution, which requires new logic inside applyDeclareShot (not a whitelist tweak) because the existing GK_BOX_ENTRY_PHASES design deliberately excludes GK_DIVE; (4) close the long-open foul-injury-booking banner bug via live two-browser plus DevTools verification, not another synthetic-test-only patch, since two prior synthetic-only attempts (including one shipped fix) already failed to reproduce or resolve the live symptom; (5) a small, low-risk GK-exemption fix to the final-third confirm button; and (6) a documentation-only rulebook gap analysis that must be cross-checked against PROJECT.md existing Deferred/Out-of-Scope list before logging anything as a new gap.
 
-Key risks and mitigations: (1) the red-card exclusion bug has now recurred 3+ times because the filter is hand-written ad hoc at each site, so extract a shared isActivePiece helper while fixing it; (2) refereeCard.leniency is a dual-consumer field (booking AND added-time), so an override touching only booking code will silently change added time too; (3) card/injury iconography is triplicated today and a 4th surface (bench) has neither icon, so unify is a genuine 4-surface consolidation; (4) match-stat counters must follow subsUsed (never reset at half-time), not addedTimeBonus (reset per-half); (5) xG capture must be instrumented at every shot-resolution branch (SHOT, SNAPSHOT_DEFLECT, headed shot, penalty, GK-dive-at-feet penalty) or it will silently under-report.
+The dominant risk pattern across all five implementation items is regression at a reset/reuse site the fix did not touch: click-to-select re-merging two guard bodies that were deliberately kept separate; jersey numbers reverting at an untouched applyRosterContinuity call site; GK box-entry double-firing or breaking one of 8 named existing shot/header/corner/penalty suites; and the banner bug being declared fixed again on unit-test pass rate alone when that exact verification gap already produced one false-positive fix. Mitigation in every case is the same: locate every call site of the mechanism being changed (not just the obvious one) and add a regression test per site before considering the item done.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new packages required. All work operates within the already-validated stack: React 18.3.1, Zustand 4.5.7, Socket.io 4.8.3, TypeScript project-wide, inline SVG (no Canvas), CSS Modules, and hand-written shared hex/validator math in packages/shared (no honeycomb-grid, despite the v1.0 recommendation, since custom hex math was actually shipped).
+No new core technologies, libraries, or dev tools are required for v1.8; this is a pure extend-existing-patterns milestone. See STACK.md for the explicit alternatives-considered (DnD replacement libraries, XState, UUID libraries, headless UI primitives), all correctly rejected as disproportionate to the change.
 
-Core technologies (all pre-existing, zero installs):
-
-- React 18 + Zustand 4 — ordinary component/state work, no new rendering paradigm
-- Socket.io 4 — new fields ride the existing full-snapshot broadcast; new events mirror existing handler shapes
-- Native HTML5 Drag and Drop API — already implements substitution drag-and-drop at the required scale
-- Inline SVG + CSS Modules — every visual glyph is a hand-tuned SVG primitive keyed off tokens.css
-- packages/shared/src/hex.ts — hexDistance() and box-occupancy helpers directly reusable for xG inputs
+Core technologies (all already installed):
+- React 18 (useState) - local, ephemeral roster-card selection state, mirroring the existing local drag-state precedent in LineupAssignmentScreen.tsx
+- Zustand (useGameStore) - only if roster selection state needs to be visible outside the roster screen (mirrors selectedPieceId/validMoveHexes); otherwise stay local
+- CSS Modules (HIGHLIGHT_STYLES/RING_STYLES-style table) - selected/eligible/deselected outline states, extending the existing single-source-of-truth styling convention rather than inventing a second one
 
 ### Expected Features
 
-All six features are explicitly in-scope P1 per PROJECT.md — none should be cut. Genre research (FIFA/EA FC, Football Manager, broadcast stats) confirms the requested shape closely matches industry convention, with two exceptions flagged as project-specific inventions.
+All 6 items named in PROJECT.md v1.8 scope are P1; none are optional stretch scope. See FEATURES.md for full detail.
 
 Must have (table stakes):
+- Select-based swap/substitution replacing drag-and-drop (the one remaining interaction surface in the app that does not match the rest of the games click-to-select model)
+- Permanent jersey numbers (numbers currently derive from formation slot, not player - a visible correctness bug)
+- Final-third confirm fix (GK-only-remaining should not block/warn on confirm)
+- Foul-injury-booking banner sequencing, closed with live verification (not re-attempted synthetically)
 
-- Consistent card/injury iconography, one fixed position, across every player-showing surface
-- Explicit off/on confirmation before a substitution commits
-- Red-carded/unavailable bench players stay visible with a status marker, never removed
-- Progressive-disclosure Advanced settings section
-- Basic on-demand match stats (possession, shots, cards) reachable mid-match
+Should have (differentiators this milestone):
+- GK box-entry-before-dive resequencing - genuine new design decision (not a 1-line reorder), the highest scope-risk item after select-based swap
+- Rules-fidelity gap analysis - audit-only deliverable, reuses the existing vX-MILESTONE-AUDIT.md format, scopes the next milestone
 
-Should have (differentiators, partially novel):
-
-- Referee Leniency manual override (2-5 dial) — thin override of existing random-roll logic
-- Tackle/Steal decline-and-retry with persistent still-live ring — no mainstream soccer-game precedent; nearest analogue is turn-based tactics games' overwatch/reserved-action pattern
-- Default drag-and-drop on-field positioning mode — also no direct precedent, project's own invention
-- On-demand info-icon stats popup, lighter than the existing full-screen half-time/full-time recap
-
-Defer (anti-features, not v1.7 scope):
-
-- Heat maps, pass-network diagrams, shot maps, per-player ratings
-- Leniency override permitting 1 or 6 (meaningless extremes) — must stay bounded 2-5
-- Undo/redo for a confirmed substitution
-- AI-suggested substitutions / tactical-instructions system
-- Configurable decline thresholds — binary toggle only
+Defer (v2+):
+- Whatever the gap analysis surfaces as highest-priority (unknown until the audit runs)
+- RESP-01..09 response-move single-selection activation model (deferred across 5 consecutive milestones; may become cheaper once this milestones click-to-select vocabulary exists)
+- A general interrupt/priority-stack engine for GK reactive moves (not yet justified with only 3 interrupt types)
+- The pregame/draft-mode drag-and-drop carousel flows - explicitly out of scope, do not touch
 
 ### Architecture Approach
 
-The existing Settings-to-Room-to-buildInitialGameState-to-GameState propagation pipeline (broadcast in full on every action, Zustand replaces state wholesale) is the load-bearing seam for 4 of 6 features. Two other recurring idioms anchor the rest: the two-button decision-prompt family (FoulChoicePanel/GkDiveAtFeetPromptPanel — deciding-team field plus resume snapshot plus waiting-message branch plus paired DECLINED event) is the template for the new Tackle/Steal prompt; and the new-event-type registration checklist (formatEvent, REPLAY_ELIGIBLE_TYPES, applyUndo isBoundary disjunction, PHASE_LABEL map, STOPPAGE_PHASES) is a documented recurring bug class every feature adding a new ActionEventType or GamePhase (Features 4, 5, 6) must budget for.
+The existing architecture (pnpm monorepo; server-authoritative gameEngine.ts pure-function FSM; Socket.io typed events; roomStore.ts single broadcastState choke point; Zustand client store replaced wholesale on game:state) is fixed and does not need to change. This researchs value is entirely in mapping each of the 5 features onto exact existing hook points.
 
-Major components (new/modified):
-
-1. CardInjuryBadge.tsx — replaces 3 duplicated inline implementations, adds card/injury display to the bench (currently has neither); should land before/alongside the substitution rework
-2. LineupAssignmentScreen.tsx rework — coexisting subMode (default positioning/reposition vs. explicit substitution), new applyRosterReposition server function, client-side confirmation modal
-3. TackleStealPromptPanel.tsx plus new GamePhase/GameState fields mirroring GkDiveAtFeetPromptPanel — decline must use a sibling exclusion field, not overload stealAttemptedByIds/tackleAttemptedByIds
-4. GameSummaryPopup.tsx plus new match-wide counter fields (mirroring subsUsed never-reset shape) plus shooterHex/defendersInBox captured at every shot-resolution branch for xG
+Major components/hook points:
+1. LineupAssignmentScreen.tsx mode-midmatch branch (about 800 lines) plus LineupStatCards isMidmatch ternary - the only surface Feature 1 (select-based swap) touches; pregame/draft branches are untouched
+2. applyDeclareShot (gameEngine.ts:9406-9483) plus the gkBoxEntryResume snapshot shape - Feature 2 (GK resequencing) must hook here, not widen the broadcastState/GK_BOX_ENTRY_PHASES whitelist
+3. buildSquadPieces, applyRosterReposition, applySubstitution, and critically applyRosterContinuity (the reset overlay, 4+ call sites) - Feature 3 (permanent numbers) must update all of these together, plus fix the jersey-number-9-based kickoff-striker lookup which will silently break once numbers are player-permanent
+4. EventBanner.tsx plus FoulChoicePanel.tsx/GameBoard.tsx layout - Feature 4 (banner bug), continued investigation, not a known fix location yet
+5. ActionPanel.tsx MOVE-phase branch (withEndTurnConfirm/remaining calc) - Feature 5 (final-third GK exemption), single-file, client-only, no server mirror needed
 
 ### Critical Pitfalls
 
-1. CONFIRMED LIVE BUG — red-carded players still trigger deflections and ZoI steal/tackle prompts. Two DEFLECT_ATTEMPT defender-input builders and moveValidator.ts ZoI opponent list never exclude redCarded/onPitch false pieces. Fix at both sites; extract a shared isActivePiece helper.
-2. Referee Leniency is a dual-consumer field (booking threshold plus added-time bonus) — an override touching only booking code silently changes added time too.
-3. Card/injury iconography is already triplicated, and a 4th surface (bench) has neither icon. Unify means replacing 3 tested implementations AND adding net-new bench display.
-4. Substitution positioning-mode and substitution-mode share the same tested component and drag handlers — highest regression risk in the milestone. Keep drop handlers separate; re-run the full SUB-0X test suite as an explicit gate.
-5. Tackle/Steal declined state must not overload the existing attempted-tracking arrays, which reset at roughly 30 independent call sites with a different semantic. Needs a sibling field with its own explicit reset policy.
+1. Select-to-swap merges two modes guard logic into one handler - keep reposition and substitute eligibility/guard logic in two structurally separate functions (mirroring the current drag-and-drop splits own documented Pitfall 5 HARD CONSTRAINT); also explicitly clear selection state on every mode toggle.
+2. Box-entry resequencing collides with the deliberate whitelist design - do not widen GK_BOX_ENTRY_PHASES to include GK_DIVE; instead add new logic inside applyDeclareShot using the shot target (always in-box) rather than ball position, and add a regression test proving box-entry fires at most once per shot.
+3. Permanent jersey numbers regress at an untouched reset site - the fix must extend applyRosterContinuitys preserved-field set (all 4+ call sites: goal-via-shot, goal-via-penalty, half-time, and any other reset) or numbers will silently revert on the first goal after kickoff; also fix the number-equals-9 kickoff-striker lookup, which breaks the instant numbers are player-permanent.
+4. Banner-sequencing fix re-patches the same reachable-but-wrong hypothesis - a prior fix (activeRef, commit 0664573) is real but proven unreachable from any current foul path and confirmed live by the user as NOT fixing the symptom; the next attempt must use live two-browser plus DevTools verification (or a DOM-stacking-aware test), not another synthetic-only pass.
+5. Rules-gap audit scope-creeps into fixing, or misclassifies intentional simplifications as gaps - cross-check every finding against PROJECT.md Deferred/Out-of-Scope/Key-Decisions tables first (e.g. FTP_MOVE_ENABLED=false, NUTMEG-01+, RESP-01..09 are known, intentional deferrals, not new gaps); zero source-file diffs outside .planning/ for this phase.
 
 ## Implications for Roadmap
 
-Based on combined research (ARCHITECTURE.md Suggested Build Order and PITFALLS.md phase-mapping table independently converged on a similar sequence):
+Based on research, suggested phase structure (5 implementation phases plus 1 audit phase):
 
-### Phase 1: Red-Card Eligibility Bug Fix
+### Phase 1: Select-Based Roster Interaction
+Rationale: Highest line-count, highest regression risk (Phase 42s own retrospective called the equivalent drag-and-drop build the largest, highest-regression-risk phase of v1.7); touches the same file/component tree as nothing else in this milestone, so building it first and stabilizing it avoids merge contention with everything downstream.
+Delivers: Click-to-select interaction replacing drag-and-drop for both mid-match positioning and stage-and-confirm substitution, with dead drag-and-drop scaffolding removed.
+Addresses: Select-based swap/substitution (table stakes)
+Avoids: Pitfall 1 (merged guard logic) - build and unit-test positioning mode first, then extend the same selection-state shape to substitution mode, then delete drag code only after both are unified.
 
-Rationale: Zero dependencies, pure server-side correctness fix, confirmed live bug. Ships first so later phases aren't tested against a still-buggy engine.
-Delivers: Fixed DEFLECT_ATTEMPT filters (2 sites) and moveValidator.ts ZoI filter; extracted shared isActivePiece helper; regression tests.
-Addresses: The bug-fix requirement embedded in the Substitution UX ask (red-carded players fully removed from play).
-Avoids: Pitfalls #6, #7 (confirmed live bugs).
+### Phase 2: Permanent Jersey Numbers
+Rationale: Must come after Phase 1, not in parallel - applyRosterReposition (one of the 3 sites this phase touches) is invoked by the exact interaction Phase 1 rebuilds; testing the number-follows-person logic is far more reliable once the new click-select UI (not the soon-to-be-deleted drag UI) is driving it end-to-end.
+Delivers: Numbers assigned once per player at squad-build time, surviving reposition/substitution/reset; role-based (not number-based) kickoff-striker lookup.
+Uses: PoolPlayer.number/BenchEntry.jerseyNumber (already player-bound today for bench display) extended to on-pitch pieces
+Implements: Extension of applyRosterContinuitys preserved-field pattern (already the projects established mechanism for survive-every-reset fields)
+Avoids: Pitfall 3 (reset-site regression) - one test per applyRosterContinuity call site with a prior substitution/reposition in place.
 
-### Phase 2: Unified Card/Injury Iconography
+### Phase 3: GK Box-Entry-Before-Dive Resequencing
+Rationale: Independent of Phases 1/2; requires the most genuine new design work (not a reorder) so should get dedicated review/discussion time rather than being squeezed alongside the higher-mechanical-risk phases.
+Delivers: A pre-GK_DIVE box-entry offer on outside-the-box shots that resolves before the shot-blocking dive, without double-interrupting or breaking the 8 existing shot/header/corner/penalty/GK-catch regression suites.
+Uses: Existing computeBoxEntryOffer/applyBoxEntryResponse/applyBoxEntryMove machinery, unchanged; new guard inside applyDeclareShot
+Avoids: Pitfall 2 (whitelist collision) - explicit design decision required; write the fires-once-before-outcome regression test before touching roomStore.ts/gameEngine.ts.
 
-Rationale: Lands before the substitution rework so its bench red-card marker consumes a real shared component.
-Delivers: New CardInjuryBadge.tsx; replaces 3 duplicated implementations; adds card/injury display to the bench.
-Addresses: Table-stakes consistent iconography.
-Avoids: Pitfall #3 (triplicated logic plus missing 4th-surface coverage).
+### Phase 4: Final-Third Confirm Fix (GK Exemption)
+Rationale: Small, low-risk, independent of everything else - good filler/parallel-friendly work alongside Phase 3.
+Delivers: Confirm button no longer warns/blocks when only the GK is unmoved in the final-third free-move phases.
+Addresses: Final-third confirm fix (table stakes)
 
-### Phase 3: Referee Leniency Manual Override
+### Phase 5: Foul-Injury-Booking Banner Sequencing (Investigation and Fix)
+Rationale: No shared files with Phases 1-4; schedule independently. Budget as investigation-first, not fix-first - root cause is still unconfirmed after a full paused investigation session, and one prior fix already shipped clean without resolving the live symptom.
+Delivers: A verified (live two-browser plus DevTools, or DOM-stacking-aware test) fix for the banner sequencing bug, plus resolution of the separately-confirmed foul-injury-booking display-order discrepancy.
+Avoids: Pitfall 4 (unverified re-fix) - do not close this on unit/component test pass rate alone.
 
-Rationale: Small, isolated, settings-pipeline-only; no file overlap with Phase 2.
-Delivers: refereeLeniencyOverride threaded through the Settings-Room-GameState pipeline (both real build site and late-joiner echo site); server-side range re-validation (2-5 integer); UI toggle plus stepper.
-Uses: Existing toggle-propagation pipeline.
-Avoids: Pitfalls #1 (dual-consumer field) and #2 (missing server-side re-validation).
-
-### Phase 4: Tackle/Steal Prompt-and-Decline Toggle
-
-Rationale: Isolated new phase/event/panel family; highest design risk after the substitution rework — sequenced before Match Summary since a decline changes what an attempt means for that stat.
-Delivers: New GamePhase, GameState fields mirroring GkDiveAtFeetPromptPanel, new TackleStealPromptPanel.tsx, sibling exclusion field for declined state, new ActionEventType with explicit Undo/Replay registration decisions.
-Implements: Two-button decision-prompt architecture pattern.
-Avoids: Pitfalls #8 (declined/attempted state conflation) and #9 (new event type missing from Undo/Replay checklist).
-
-### Phase 5: Substitution UX Overhaul (largest, highest-risk phase)
-
-Rationale: Largest, most interdependent feature — benefits from Phase 1 clean engine and Phase 2 shared badge already in place.
-Delivers: Coexisting subMode in LineupAssignmentScreen.tsx; new applyRosterReposition server function; new GAME_ROSTER_REPOSITION event; confirmation modal; bench red-card marker (consuming Phase 2 badge); green Resume-button/banner visuals.
-Addresses: Table-stakes substitution confirmation, positioning-mode differentiator, bench red-card marker.
-Avoids: Pitfall #5 (mode guard entanglement) — requires separate drop handlers and full SUB-0X re-verification.
-
-### Phase 6: Advanced Settings Drawer
-
-Rationale: Built last among settings-touching phases so it sizes itself against the final toggle count (4 existing plus Leniency plus Tackle/Steal Decline equals 6).
-Delivers: Collapsed-by-default Advanced section; two-column CSS Grid; single derived-state function shared between render-time and confirm-time Fouls-dependency logic.
-Uses: Existing local useState plus CSS Modules pattern.
-Avoids: Pitfall #4 (Fouls-dependency logic split across two mechanisms).
-
-### Phase 7: Match Summary / Stats Popup with xG
-
-Rationale: Last — it reads state the other features produce, and touches the largest number of existing gameEngine.ts call sites, so building it after the engine stabilizes avoids rebasing across concurrent engine edits.
-Delivers: New match-wide (never-reset) counter fields for possession/passes/tackle-steal/fouls-cards; shooterHex/defendersInBox captured at every shot-resolution branch for xG; GameSummaryPopup.tsx deriving xG from an on-demand eventLog scan; scoreboard info-icon; settings/toggle recap.
-Addresses: Table-stakes on-demand match stats; the largest net-new server-side surface of the six.
-Avoids: Pitfalls #10 (wrongly reset at half-time), #11 (xG missing for non-main-branch shot types), #12 (possession/pass-count source-of-truth ambiguity — default to on-demand eventLog scan, mirroring the ball.lastTouchedBy precedent).
+### Phase 6: Rules-Fidelity Gap Analysis (Audit)
+Rationale: Independent of all implementation phases; can run in parallel or last. Running it after Phases 1-5 land means it naturally excludes ground already covered this milestone.
+Delivers: A scoped, prioritized findings document (reusing the vX-MILESTONE-AUDIT.md format) cross-referencing rulebook clauses against implementation, explicitly classifying each finding as gap / intentional-simplification / false-positive.
+Avoids: Pitfall 5 (scope creep / re-discovering known deferrals) - build the known-deferred/out-of-scope cross-reference from PROJECT.md before reading the rulebook; zero source-file diffs outside .planning/.
 
 ### Phase Ordering Rationale
 
-- Bug fix and low-novelty toggles first, novel state machines and highest-regression-risk UI in the middle, stats aggregation last — follows both the dependency graph (Match Summary reads state earlier phases produce) and risk-mitigation logic (fix the engine before testing new UI against it; build the shared badge before the UI that needs it).
-- Substitution UX is deliberately not first, despite being the largest feature, because it benefits measurably from Phase 1 (clean engine, since it owns the red-card bug-fix scope) and Phase 2 (shared badge) landing first.
-- This avoids the specific pitfall class already documented in this codebase (new-event-type registration gaps, dual-consumer field surprises, duplicated eligibility filters) by grouping related audit work into the phase introducing the new state.
+- Phase 1 must precede Phase 2 because Phase 2s number-follows-person logic is exercised through the exact reposition interaction Phase 1 rebuilds - sequencing avoids testing new logic against soon-to-be-deleted UI.
+- Phases 3 and 4 are mutually independent and independent of 1/2 - both are small, isolated, single-file-ish changes and can be parallelized with each other or slotted in wherever convenient.
+- Phase 5 is a standalone debug/investigation task with no shared files with any other phase - schedule independently, but do not underestimate it; two prior fix attempts have already failed.
+- Phase 6 (audit) has no code dependency on any other phase and is best run last so it naturally excludes ground this milestone already closed, though it could also run first or in parallel if the team wants early visibility into next-milestone candidates.
 
 ### Research Flags
 
-Needs deeper research/design during phase planning:
+Phases likely needing deeper research during planning:
+- Phase 3 (GK box-entry resequencing): Genuinely new design scope contradicting an existing documented architectural decision (the GK_BOX_ENTRY_PHASES whitelist rationale) - needs explicit design-decision documentation before implementation, and an audit of all 5 GK_DIVE entry sites (not just applyDeclareShot) to confirm scope boundaries.
+- Phase 5 (banner sequencing): Root cause still unconfirmed after a full prior investigation; may require live two-browser session tooling not currently installed in the repo (no Playwright/e2e tooling present per the debug log) - planning should address how live verification will actually be performed.
 
-- Phase 4 (Tackle/Steal decline): Genuinely novel engine state machine, no genre precedent, no existing code path to extend from. Flag for deeper design/context work at plan time.
-- Phase 7 (Match Summary/xG): xG capture spans 4+ independently-coded shot-resolution branches with no shared hook — needs explicit branch enumeration before implementation. Also needs an explicit live-counter-vs-eventLog-scan architecture decision recorded before implementation.
-- Phase 5 (Substitution UX): Should get dedicated planning time enumerating every existing SUB-0X guard before implementation (test-first for the mode-coexistence boundary) given confirmed regression risk.
-
-Phases with standard, well-documented patterns (skip deep research-phase):
-
-- Phase 1 (bug fix): Mechanical filter additions at already-identified sites.
-- Phase 2 (iconography): Standard component-extraction refactor; visual pattern already confirmed industry-standard and partially implemented.
-- Phase 3 (Leniency override): Thin override mirroring an already-established toggle-propagation pattern used 4 times before.
-- Phase 6 (Advanced drawer): Native details/useState plus CSS Grid; zero new architecture.
+Phases with standard patterns (skip research-phase):
+- Phase 1 (select-based roster interaction): Pattern already fully proven elsewhere in this exact codebase (piece selection/movement); implementation research already complete in ARCHITECTURE.md file/line-level mapping.
+- Phase 2 (permanent jersey numbers): All source/reset call sites already enumerated in ARCHITECTURE.md and PITFALLS.md; mechanism to extend (applyRosterContinuity) is an established project pattern.
+- Phase 4 (final-third confirm fix): Single-file, single-branch change with the exact fix already located and described.
+- Phase 6 (rules-fidelity audit): Established project convention (vX-MILESTONE-AUDIT.md format) to reuse; process is well-defined, not a research gap.
 
 ## Confidence Assessment
 
-| Area         | Confidence | Notes                                                                                                                                                                                                                                     |
-| ------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stack        | HIGH       | Grounded in direct inspection of package.json manifests and shipped code; unanimous no-new-deps-needed conclusion                                                                                                                         |
-| Features     | MEDIUM     | Established genre/UX conventions cross-checked against public sources, but 2 of 6 features (tackle/steal decline, default positioning mode) have no direct genre precedent — flagged explicitly rather than forced into a false precedent |
-| Architecture | HIGH       | Every integration claim backed by file:line citations from direct code reads; no speculative APIs                                                                                                                                         |
-| Pitfalls     | HIGH       | Grounded in direct code reads; two pitfalls (#6, #7) are confirmed, currently-live, reproducible bugs discovered during this research                                                                                                     |
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Stack | HIGH | No new technology proposed; findings are direct codebase inspection of an already-working, precedented pattern. Nothing to verify externally. |
+| Features | MEDIUM-HIGH | Grounded primarily in direct codebase/PROJECT.md inspection (HIGH); a few external corroborating sources (HN discussion, MTG stack articles, Wikipedia squad-number reference, generic toast-UX roundups) are MEDIUM-LOW confidence but used only as illustrative analogies, not as load-bearing recommendations. |
+| Architecture | HIGH | Every finding is a direct file/line-level read of the current repository; no invented APIs or external documentation needed for this integration-focused research. |
+| Pitfalls | HIGH | All findings grounded in direct inspection of this codebases source and its own prior debug/investigation history (.planning/debug/foul-banner-sequence-not-pausing.md), not generic industry advice. |
 
 Overall confidence: HIGH
 
 ### Gaps to Address
 
-- Tackle/Steal decline state machine design is not fully specified — exact GameState field shape, resume-snapshot mechanics, and reset-policy table across roughly 30 existing reset sites needs to be worked out during Phase 4 planning.
-- The wrapper component owning the substitution-mode banner/Resume-button chrome (green banner, green Resume button) was not identified during architecture research — needs a planning-time look at App.tsx or the equivalent wrapper.
-- The scoreboard component that will host the new info-icon affordance was not identified — needs a planning-time lookup (referenced only via PROJECT.md LAYOUT-01 decision).
-- Whether Referee Leniency's added-time coupling should be fixed (split the field) or just documented/messaged in UI is an open product decision — confirm with the user before implementation.
-- The is-an-action-pending guard needed to disable positioning-mode drag during an active game action needs a planning-time check of useGameStore.ts selection-state fields.
+- Banner-sequencing root cause is genuinely unknown - this is not a research gap so much as an open investigation; planning for Phase 5 should budget real investigation time (live two-browser session, DevTools) rather than assuming a quick code fix, and should explicitly decide how live verification will be performed given no e2e tooling is currently installed.
+- GK box-entry resequencing scope boundary - research flagged that the fix should apply to declared shots only (applyDeclareShot), not the header/snapshot GK_DIVE entry sites, but this is a scope decision that should be explicitly confirmed/documented during planning, not assumed.
+- MidmatchSubMode toggle buttons fate - architecture research raised (but deliberately left open) whether the explicit Reposition/Substitute toggle button is still needed once selection source (pitch vs. bench) already disambiguates intent; this is a UX call for planning, not resolved in research.
+- Draft-mode bench number permanence - permanent jersey numbers for draft-mode bench players (assignBenchNumbers, currently a random bench-display-only number) need a new assign-once-freeze semantic that does not exist today; needs an explicit decision during Phase 2 planning, not just an extension of the Standard-room logic.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- Direct repository inspection: packages/client/package.json, packages/server/package.json, packages/shared/package.json
-- Direct component/module inspection: PieceOverlay.tsx, PlayerStatsPanel.tsx, LineupAssignmentScreen.tsx, ActionPanel.tsx, GameSettingsScreen.tsx, HexGrid.tsx, BenchCarousel.tsx, DraftPackCarousel.tsx, GkDiveAtFeetPromptPanel.tsx, FoulChoicePanel.tsx
-- Direct server/shared module inspection: gameEngine.ts, gameHandlers.ts, roomHandlers.ts, roomStore.ts, moveValidator.ts, fouls.ts, stoppagePhases.ts, types.ts, hex.ts
-- .planning/PROJECT.md and .planning/STATE.md — documented pitfall precedents (subsUsed/addedTimeBonus, lastTouchedBy decision, BUG-30/31/37)
-- .planning/debug/resolved/red-card-bench-removal-scope.md — prior investigation directly informing the confirmed live-bug pitfalls
+- Direct codebase inspection: packages/client/src/components/LineupAssignmentScreen.tsx, packages/client/src/store/useGameStore.ts, packages/client/src/components/PieceOverlay.tsx, packages/client/src/components/ActionPanel.tsx, packages/client/src/components/EventBanner.tsx, packages/client/src/components/GameBoard.tsx, packages/server/src/gameEngine.ts, packages/server/src/roomStore.ts, packages/server/src/gameHandlers.ts, packages/server/src/draftSession.ts, packages/shared/src/formations.ts, packages/shared/src/types.ts, packages/shared/src/pitch.ts
+- .planning/PROJECT.md - Key Decisions, Deferred/Out-of-Scope tables
+- .planning/debug/foul-banner-sequence-not-pausing.md - full prior investigation history
+- .planning/milestones/v1.6-MILESTONE-AUDIT.md - precedent audit format
 
 ### Secondary (MEDIUM confidence)
-
-- FIFA/EA Sports FC and Football Manager substitution-flow public references — confirms the select-outgoing/select-incoming/Confirm pattern
-- Sportmonks/football-stats glossary sources — standard broadcast stat-category taxonomy
-- Progressive Disclosure UX pattern references (LogRocket, UXPin) — standard collapsed-by-default Advanced-section convention
+- Click and Swap, our alternative to Drag and Drop (Hacker News discussion, https://news.ycombinator.com/item?id=30034999) - corroborates pick-n-plop as an established DnD alternative
+- The Stack and Priority in Magic: The Gathering (https://magicthegatheringauthority.com/the-stack-and-priority) and MTG The Stack Explained (https://www.tabletopmeta.com/blog/mtg-stack-explained) - illustrative causal-order reference only, not an architecture recommendation
+- Squad number (association football), Wikipedia (https://en.wikipedia.org/wiki/Squad_number_(association_football)) - corroborates real-world permanent-number convention
 
 ### Tertiary (LOW confidence)
-
-- None flagged — all findings were either direct code reads or corroborated by multiple independent public sources
+- General toast/notification-queue UX best-practice sources - generic web-app advice extrapolated to a game-banner context, used only to corroborate an already-built pattern
 
 ---
-
-Research completed: 2026-08-21
+Research completed: 2026-08-30
 Ready for roadmap: yes
