@@ -162,7 +162,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
-| 47    | Select-Based Roster Interaction                       | TBD   | Not started |
+| 47    | 1/6 | In Progress|  |
 | 48    | Permanent Jersey Numbers                              | TBD   | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
@@ -187,7 +187,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 Plans:
 **Wave 1**
 
-- [ ] 47-01-PLAN.md — Selection visual tokens (green `.statCardSelected` / blue `.statCardEligible`) + `DraftPackCarousel`/`DraftCardBody` click contract
+- [x] 47-01-PLAN.md — Selection visual tokens (green `.statCardSelected` / blue `.statCardEligible`) + `DraftPackCarousel`/`DraftCardBody` click contract
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -335,7 +335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 7/7 plans complete
+**Plans:** 1/6 plans executed
 
 Plans:
 
