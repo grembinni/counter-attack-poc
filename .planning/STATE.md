@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: UI Consistency, Substitution Rework & Match Summary
-status: executing
-stopped_at: Phase 46 UI-SPEC approved
-last_updated: "2026-08-29T11:41:18.854Z"
-last_activity: 2026-08-29 -- Phase 46 execution started
+status: completed
+stopped_at: Phase 46 complete (Plan 46-07, live verification recorded)
+last_updated: "2026-08-30T13:25:28.063Z"
+last_activity: 2026-08-30 -- Phase 46 plan 07 (live verification) complete
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 47
-  completed_plans: 40
-  percent: 71
+  completed_plans: 47
+  percent: 86
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 46 (final-cleanup) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 46
-Last activity: 2026-08-29 -- Phase 46 execution started
+Phase: 46 (final-cleanup) — COMPLETE
+Plan: 7 of 7
+Status: Phase 46 complete — all 7 plans executed, all 9 CLEANUP requirements evidenced
+Last activity: 2026-08-30 -- Phase 46 plan 07 (live verification) complete
 
 ## Project Reference
 
@@ -87,7 +87,7 @@ See: .planning/PROJECT.md (updated 2026-08-21 after v1.7 milestone started)
 | 43    | Tackle/Steal Prompt & Decline                 | Complete    | 2026-08-23 |
 | 44    | Referee Leniency & Advanced Settings Drawer   | Complete    | 2026-08-28 |
 | 45    | Game Summary Popup                            | Complete    | 2026-08-29 |
-| 46    | Final Cleanup                                 | Not started | -          |
+| 46    | Final Cleanup                                 | Complete    | 2026-08-30 |
 
 ## Blocking Dependencies
 
@@ -371,8 +371,8 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 
 ## Session Continuity
 
-Last session: 2026-08-29T02:32:00.128Z
-Stopped at: Phase 46 UI-SPEC approved
+Last session: 2026-08-30T13:25:28.054Z
+Stopped at: Phase 46 complete (Plan 46-07, live verification recorded)
 Resume file: .planning/phases/46-final-cleanup/46-UI-SPEC.md
 Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves — the (i) icon, standalone modal, and HALF_TIME/FULL_TIME embedding all shipped, with checkpoint 45-05-04 going through 4 rounds of live two-browser developer verification (red-card zone bug, phase-label text, modal chrome/color, a shared MatchScoreRow component, centered settings-bubble grid, and a corrected Referee Leniency color rule — all fixed and re-verified). Phase 46 (Final Cleanup) context has been gathered (`.planning/phases/46-final-cleanup/46-CONTEXT.md`) — 3 todos folded in (auto-reselect fix, PK/FK kicker pattern, speed-setting relocation), a new hardcoded-placeholder-bench patch added by explicit user scope override, 2 rendering-bug todos reviewed and declined. Next step is to plan Phase 46 (`/gsd-plan-phase 46`).
 
@@ -428,6 +428,7 @@ Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves —
 | Phase 24-auto-assignment-lineup P03       | 180    | 3 tasks  | 13 files |
 | Phase 29 P11                              | 6min   | 3 tasks  | 4 files  |
 | Phase 43-tackle-steal-prompt-decline P06  | ~2h    | 4 tasks  | 5 files  |
+| Phase Phase 46-final-cleanup P07 | ~15min | 2 tasks | 2 files |
 
 ## Decisions
 
@@ -520,6 +521,7 @@ Resume: Phase 45 (Game Summary Popup) is closed out, verified 9/9 must-haves —
 - [Phase 43-06]: TACKLE-03 ring persistence enforced by tests alone (no new GameState field); stealAttemptedByIds/tackleAttemptedByIds remain single source of truth
 - [Phase 43-06]: Pre-existing root pnpm lint OOM confirmed unrelated Phase 32/33 tech debt, logged to deferred-items.md rather than fixed
 - [Phase 43-06]: No-auto-reselect-after-interrupt-prompt-resume UX gap confirmed pre-existing/cross-cutting (affects GK dive-at-feet, GK box entry, foul choice too), filed as backlog todo resolves_phase:46 rather than fixed in this plan
+- [Phase 46]: v1.7: Phase 46's Manual-Only Verifications (CLEANUP-05/06/10/11) closed via one live two-browser walkthrough returning a blanket All 8 pass verdict, recorded per-check in 46-AUDIT.md and reflected as an Outcome column across all 6 rows of 46-VALIDATION.md's Manual-Only table
 
 ## Operator Next Steps
 

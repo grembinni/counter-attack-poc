@@ -150,7 +150,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | 6/6 | Complete    | 2026-08-29 |
-| 46    | 6/7 | In Progress|  |
+| 46    | 7/7 | Complete   | 2026-08-30 |
 
 ### Phase 41: Card & Injury Iconography
 
@@ -395,7 +395,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 46-07-PLAN.md — Live two-browser verification checkpoint + outcome record (CLEANUP-05/06/10/11)
+- [x] 46-07-PLAN.md — Live two-browser verification checkpoint + outcome record (CLEANUP-05/06/10/11)
 
 **UI hint**: yes
 
@@ -458,7 +458,7 @@ Plans:
 | 43. Tackle/Steal Prompt & Decline        | v1.7      | 6/6            | Complete    | 2026-08-23 |
 | 44. Referee Leniency & Advanced Settings | v1.7      | 5/5            | Complete    | 2026-08-28 |
 | 45. Game Summary Popup                   | v1.7      | 0/TBD          | Not started | -          |
-| 46. Final Cleanup                        | v1.7      | 0/TBD          | Not started | -          |
+| 46. Final Cleanup                        | v1.7      | 7/7            | Complete    | 2026-08-30 |
 
 ## Backlog
 
@@ -466,7 +466,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 
