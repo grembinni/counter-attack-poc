@@ -150,7 +150,7 @@ Full archive: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · [Requi
 | 43    | 6/6                                         | Complete | 2026-08-23  |
 | 44    | 5/5 | Complete    | 2026-08-28 |
 | 45    | 6/6 | Complete    | 2026-08-29 |
-| 46    | 7/7 | Complete   | 2026-08-30 |
+| 46    | 7/7 | Complete    | 2026-08-30 |
 
 ### Phase 41: Card & Injury Iconography
 
