@@ -1692,6 +1692,11 @@ describe('applyRoll PASS-case corner accuracy gate (CORNER-04/CORNER-05, 38-04 T
     if (!result.ok) return;
     expect(result.state.phase).toBe('LOOSE_BALL');
     expect(result.state.lastActionType).toBe('DEFLECTION');
+    // CLEANUP: the loose-ball scatter must originate from the short pass's target hex,
+    // not the corner taker's hex — the ball never physically travels for a Low corner
+    // before this accuracy roll runs.
+    expect(result.state.ball.position).toEqual(cornerLowState.passTargetHex);
+    expect(result.state.ball.position).not.toEqual(cornerLowState.ball.position);
   });
 
   it('CORNER-04: Low corner die=3 (score 8 >= 8, HIGH threshold) → accurate → ball delivered; phase stays PASS (not HEADER)', () => {

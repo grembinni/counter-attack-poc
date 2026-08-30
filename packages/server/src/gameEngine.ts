@@ -4525,11 +4525,14 @@ export function applyRoll(state: GameState, ...dice: number[]): ApplyRollResult 
             state: {
               ...state,
               phase: 'LOOSE_BALL',
-              // Preserve the existing ball-position rule for the LOOSE_BALL return (High:
-              // state.ball.position — treat corner Low the same as High since the corner
-              // ball has not moved to the target).
+              // CLEANUP: the LOOSE_BALL scatter must originate from where the pass was
+              // aimed, not where the ball physically sits. A corner High Pass pre-moves
+              // ball.position to targetHex during HIGH_PASS_MOVE repositioning before this
+              // accuracy roll runs, so state.ball.position is already targetHex for High.
+              // A corner Low Pass never goes through that pre-move step — ball.position is
+              // still the corner hex here — so Low must use targetHex explicitly.
               ball: {
-                position: state.ball.position,
+                position: cornerPassType === 'HIGH' ? state.ball.position : targetHex,
                 carrierId: null,
                 lastTouchedBy: { pieceId: carrier.id, teamId: carrier.teamId },
               },

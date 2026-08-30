@@ -1465,6 +1465,10 @@ describe('CORNER-05: kick resolution', () => {
     if (accEvent?.type === 'CORNER_KICK_ACCURACY') {
       expect(accEvent.accurate).toBe(false);
     }
+    // CLEANUP: the loose-ball scatter must originate from the short pass's target hex,
+    // not the corner flag — a Low corner never physically moves the ball before this
+    // accuracy roll runs.
+    expect(state.ball.position).toEqual(LOW_DELIVERY_TARGET);
   });
 
   it('a Low Pass corner with a failing die does not deliver — unlike an ordinary Standard Pass with the same die', async () => {
