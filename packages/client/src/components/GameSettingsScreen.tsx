@@ -104,10 +104,12 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
   // ROOM_SETTINGS_CONFIRM twice before the ROOM_SETTINGS_CONFIRMED echo routes the
   // screen away — mirrors UniformSelectionScreen's hasConfirmed pattern.
   const [hasConfirmed, setHasConfirmed] = useState(false);
-  // SETTINGS-05 (Phase 44): the Advanced match-rule toggles are collapsed by default.
-  // Collapsing changes visibility only, never any toggle's default value — a host who
-  // never opens this section confirms exactly the pre-Phase-44 payload.
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // CLEANUP (live-playtest gap-closure): the screen is now two real tabs — "Settings"
+  // (match-rule toggles, previously hidden behind the Advanced disclosure) and "Team
+  // Mode" (the Standard/Draft toggle + Draft Pool selection). Replaces the old
+  // single-scroll layout where the Team Type segmented control and the Advanced
+  // disclosure both lived on one page at once.
+  const [activeTab, setActiveTab] = useState<'settings' | 'teamMode'>('settings');
 
   // CR-03 (Phase 36 review): a server-side confirm rejection (e.g. DRAFT_SUPPLY_EXHAUSTED)
   // never emits ROOM_SETTINGS_CONFIRMED, so hasConfirmed being set unconditionally in
@@ -194,42 +196,30 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
         <h2 className={styles.heading}>Game Settings</h2>
 
         <div className={styles.section}>
-          <span className={styles.sectionLabel}>Team Type</span>
           <div role="tablist" className={styles.tabs}>
             <button
               type="button"
               role="tab"
-              aria-selected={teamType === 'standard'}
-              className={teamType === 'standard' ? styles.tabActive : styles.tab}
-              onClick={() => setTeamType('standard')}
+              aria-selected={activeTab === 'settings'}
+              className={activeTab === 'settings' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('settings')}
             >
-              Standard
+              Settings
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={teamType === 'draft'}
-              className={teamType === 'draft' ? styles.tabActive : styles.tab}
-              onClick={() => setTeamType('draft')}
+              aria-selected={activeTab === 'teamMode'}
+              className={activeTab === 'teamMode' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('teamMode')}
             >
-              Draft
+              Team Mode
             </button>
           </div>
         </div>
 
-        <div className={styles.section}>
-          {/* SETTINGS-05/D-06 (Phase 44): collapsed-by-default disclosure trigger, styled
-              like the existing Back link. aria-expanded is the accessible disclosure
-              contract and the stable test hook. */}
-          <button
-            type="button"
-            className={styles.subLink}
-            aria-expanded={advancedOpen}
-            onClick={() => setAdvancedOpen((v) => !v)}
-          >
-            {advancedOpen ? 'Advanced ▾' : 'Advanced ▸'}
-          </button>
-          {advancedOpen && (
+        {activeTab === 'settings' && (
+          <div className={styles.section}>
             <div className={styles.advancedGrid}>
               <div className={styles.advancedColumn}>
                 <label className={styles.poolRow}>
@@ -264,30 +254,24 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
                     <span className={styles.comingSoon}> (requires Fouls)</span>
                   )}
                 </label>
-                {/* CLEANUP-05 (Phase 46): the speed picker relocated here from its own
-                    top-level section, per the folded "move speed to advanced settings"
-                    todo. Widget, colors, labels, aria contract, and confirmed-payload
-                    behaviour are unchanged — only its location moved. Wrapper reuses
-                    the existing .section class (same spacing this content already had
-                    before the move) rather than introducing a new CSS rule. */}
+                {/* CLEANUP (live-playtest gap-closure): plain radio group, no per-speed
+                    color/icon styling — replaces the CLEANUP-05/Phase-46 colored button
+                    group. Native radios give free keyboard/AT semantics; the confirmed
+                    payload shape (GameSpeed value) is unchanged. */}
                 <div className={styles.section}>
                   <span className={styles.sectionLabel}>Match Speed</span>
-                  <div className={styles.speedOptions}>
-                    {SPEED_OPTIONS.map(({ value, label, icon, colorClass }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className={
-                          value === speed
-                            ? `${styles.speedOptionActive} ${styles[colorClass]}`
-                            : `${styles.speedOption} ${styles[colorClass]}`
-                        }
-                        onClick={() => setSpeed(value)}
-                        aria-pressed={value === speed}
-                      >
-                        <span className={styles.speedIcon}>{icon}</span>
+                  <div role="radiogroup" aria-label="Match Speed" className={styles.speedOptions}>
+                    {SPEED_OPTIONS.map(({ value, label }) => (
+                      <label key={value} className={styles.speedRadioOption}>
+                        <input
+                          type="radio"
+                          name="gameSpeed"
+                          value={value}
+                          checked={value === speed}
+                          onChange={() => setSpeed(value)}
+                        />
                         {label}
-                      </button>
+                      </label>
                     ))}
                   </div>
                 </div>
@@ -344,33 +328,49 @@ export function GameSettingsScreen({ onConfirm, onBack }: Props) {
                 </label>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {teamType === 'draft' && (
+        {activeTab === 'teamMode' && (
           <div className={styles.section}>
-            <span className={styles.sectionLabel}>Draft Pool</span>
-            <div className={styles.poolList}>
-              {ALL_DRAFT_POOLS.map((poolId) => {
-                const disabled = !SELECTABLE_DRAFT_POOLS.includes(poolId);
-                const checked = draftPools.includes(poolId);
-                return (
-                  <label
-                    key={poolId}
-                    className={disabled ? styles.poolRowDisabled : styles.poolRow}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={disabled}
-                      onChange={() => toggleDraftPool(poolId)}
-                    />
-                    {DRAFT_POOL_LABELS[poolId]}
-                    {disabled && <span className={styles.comingSoon}> (coming soon)</span>}
-                  </label>
-                );
-              })}
-            </div>
+            <span className={styles.sectionLabel}>Team Mode</span>
+            <label className={styles.poolRow}>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-checked={teamType === 'draft'}
+                checked={teamType === 'draft'}
+                onChange={() => setTeamType((t) => (t === 'draft' ? 'standard' : 'draft'))}
+              />
+              Draft Mode {teamType === 'draft' ? '(On — Draft)' : '(Off — Standard)'}
+            </label>
+
+            {teamType === 'draft' && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Draft Pool</span>
+                <div className={styles.poolList}>
+                  {ALL_DRAFT_POOLS.map((poolId) => {
+                    const disabled = !SELECTABLE_DRAFT_POOLS.includes(poolId);
+                    const checked = draftPools.includes(poolId);
+                    return (
+                      <label
+                        key={poolId}
+                        className={disabled ? styles.poolRowDisabled : styles.poolRow}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() => toggleDraftPool(poolId)}
+                        />
+                        {DRAFT_POOL_LABELS[poolId]}
+                        {disabled && <span className={styles.comingSoon}> (coming soon)</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

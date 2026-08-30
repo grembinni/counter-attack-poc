@@ -45,75 +45,23 @@
   color: var(--color-text-primary);
 }
 
-/* Match Speed picker — duplicated from TeamSelectionScreen's interactive branch. */
+/* Match Speed picker — CLEANUP (live-playtest gap-closure): plain radio group,
+   replacing the CLEANUP-05/Phase-46 colored button group (no per-speed color/icon
+   styling per the request). */
 .speedOptions {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 16px;
 }
 
-.speedOption {
+.speedRadioOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-
-.speedOption:hover {
-  border-color: var(--color-text-primary);
   color: var(--color-text-primary);
-}
-
-.speedOptionActive {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-text-primary);
-  border-radius: 4px;
-  padding: 4px 8px;
   cursor: pointer;
-}
-
-.speedIcon {
-  display: inline-block;
-  margin-right: 4px;
-  font-style: normal;
-}
-
-.speedColorSlow {
-  border-color: var(--color-speed-slow);
-  color: var(--color-speed-slow);
-}
-.speedColorSlow.speedOptionActive {
-  background: var(--color-speed-slow-bg);
-  color: var(--color-speed-slow-active);
-  border-color: var(--color-speed-slow-active);
-}
-
-.speedColorStandard {
-  border-color: var(--color-speed-standard);
-  color: var(--color-speed-standard);
-}
-.speedColorStandard.speedOptionActive {
-  background: var(--color-speed-standard-bg);
-  color: var(--color-speed-standard-active);
-  border-color: var(--color-speed-standard-active);
-}
-
-.speedColorFast {
-  border-color: var(--color-speed-fast);
-  color: var(--color-speed-fast);
-}
-.speedColorFast.speedOptionActive {
-  background: var(--color-speed-fast-bg);
-  color: var(--color-speed-fast-active);
-  border-color: var(--color-speed-fast-active);
 }
 
 /* Team Type toggle — duplicated .tab/.tabActive pattern from TeamSelectionScreen. */
