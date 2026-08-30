@@ -95,9 +95,24 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   const effectivePace = state.movementSlot === 'ATTACKER_2' ? Math.min(piece.pace, 2) : piece.pace;
   if (paceUsed + 1 > effectivePace) return { ok: false, reason: 'PACE_EXCEEDED' };
 
+  // CLEANUP (overrides the prior CR-01/Plan 37-11 design — reversed per live playtest
+  // feedback, gap-closure follow-up): no tackle/steal challenge may fire while a
+  // throw-in's mandatory pre-throw positioning window is still open (D-09/THROWIN-02).
+  // applyThrowInPlace puts the thrower into a real Movement Phase (phase: 'MOVE') and
+  // makes them ball.carrierId before the throw itself is taken, so this validator
+  // previously treated a defender closing in during that positioning window as a live-
+  // play challenge (CR-01 called this "ending the throw-in early" and tested it as a
+  // deliberate turnover path). The window is exactly throwInPhasesTaken 0 and 1
+  // (mirrors the throwInStillValid check in gameEngine.ts's applyEndTurn ATTACKER_2
+  // branch); once throwInPhasesTaken reaches 2 the throw has been taken and normal
+  // challenge rules resume. The move itself remains valid — only the STEAL_ATTEMPT/
+  // TACKLE_ATTEMPT effect is suppressed.
+  const inThrowInPreThrowWindow =
+    state.throwInHex != null && state.throwInPhasesTaken != null && state.throwInPhasesTaken < 2;
+
   // 6. ZoI steal trigger — only when the moving piece is the ball-carrier (D-03, MOVE-04/MOVE-05)
   // MOVE-06: deferred to Phase 4 — requires pitch region encoding (CONTEXT.md Deferred Ideas)
-  if (state.ball.carrierId === piece.id) {
+  if (state.ball.carrierId === piece.id && !inThrowInPreThrowWindow) {
     // BUG-38: exclude red-carded/benched opponents via isActivePiece — a sent-off opponent no
     // longer projects a Zone of Influence. Independent of the stealAttemptedByIds exclusion
     // below; the two filters must not be merged.
@@ -128,7 +143,11 @@ export function validateMove(state: GameState, piece: PlayerPiece, to: HexCoord)
   // piece can never be the carrier, and applyMove already rejects a red-carded mover by id
   // (gameEngine.ts CARD-02/CARD-04 guard). Duplicating that rejection here is deliberately
   // avoided.
-  if (state.ball.carrierId !== null && state.ball.carrierId !== piece.id) {
+  if (
+    state.ball.carrierId !== null &&
+    state.ball.carrierId !== piece.id &&
+    !inThrowInPreThrowWindow
+  ) {
     const carrier = state.pieces.find((p) => p.id === state.ball.carrierId);
     if (
       carrier !== undefined &&
