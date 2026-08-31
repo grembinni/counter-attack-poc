@@ -1389,8 +1389,14 @@ export function LineupAssignmentScreen({
   const pregameBenchCards: TieredPoolPlayer[] = pregameGenericBench
     .map((p) => resolveTieredCard(p.id))
     .filter((c): c is TieredPoolPlayer => c !== null);
-  const pregameBenchNumbers: Record<string, number> = {};
-  for (const p of pregameGenericBench) pregameBenchNumbers[p.id] = p.number;
+  // Phase 48 (D-02/D-04/D-05, NUMBER-01): a standard-mode bench player's permanent
+  // jersey number is a server-side random draw in [15, 99] made at LINEUP_CONFIRM
+  // (roomHandlers.ts, assignBenchNumbers); it does not exist yet at Step 3, and
+  // PoolPlayer.number (the authored 12-16 identity value) is not a match jersey
+  // number. Rendering nothing here (no benchNumbers prop passed below) is the same
+  // state the draft-mode bench already shows before draftComplete (see
+  // DraftPackCarousel.tsx's note that BenchCarousel only passes benchNumbers once
+  // the draft completes), so this introduces no new visual idiom.
 
   return (
     <div className={styles.screen}>
@@ -1417,7 +1423,6 @@ export function LineupAssignmentScreen({
         <BenchCarousel
           cards={pregameBenchCards}
           teamId={myTeamId}
-          benchNumbers={pregameBenchNumbers}
           disabled
           onCardClick={() => {}}
         />

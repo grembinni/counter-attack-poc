@@ -34,7 +34,12 @@
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, within, act } from '@testing-library/react';
-import { PLAYER_POOL, computeTotalStat, MAX_SUBS_PER_TEAM } from '@counter-attack/shared';
+import {
+  PLAYER_POOL,
+  computeTotalStat,
+  MAX_SUBS_PER_TEAM,
+  getGenericBenchPlayers,
+} from '@counter-attack/shared';
 import type {
   BenchEntry,
   DraftClientView,
@@ -933,6 +938,22 @@ describe('LineupAssignmentScreen — ROSTER-07: Standard pregame click-to-swap',
     fireEvent.click(card);
     expect(card.className).not.toMatch(/statCardSelected/);
     expect(onSwap).not.toHaveBeenCalled();
+  });
+
+  it('NUMBER-01: the standard pregame bench renders no jersey number (none is assigned until LINEUP_CONFIRM)', () => {
+    const { container } = renderPregame();
+    const benchSection = container.querySelector('[class*="benchSection"]') as HTMLElement;
+    expect(benchSection).not.toBeNull();
+    // No #n jersey number anywhere on the bench — the server hasn't drawn one yet.
+    expect(benchSection.querySelectorAll('[class*="cardNum"]').length).toBe(0);
+    // The five placeholder bench players still render by name.
+    expect(benchSection.querySelectorAll('[data-roster-card]').length).toBe(5);
+    const genericBenchPlayer = getGenericBenchPlayers('home')[0]!;
+    expect(benchSection.textContent).toContain(
+      `${genericBenchPlayer.firstName} ${genericBenchPlayer.lastName}`,
+    );
+    // The eleven slot-derived starting-XI numbers (D-01) are untouched, outside the bench.
+    expect(container.querySelectorAll('[class*="cardNum"]').length).toBeGreaterThanOrEqual(11);
   });
 });
 
