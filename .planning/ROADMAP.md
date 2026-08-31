@@ -163,7 +163,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
 | 47    | 6/6 | Complete    | 2026-08-31 |
-| 48    | 5/6 | In Progress|  |
+| 48    | 6/6 | Complete   | 2026-08-31 |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
 | 51    | Rules-Fidelity Gap Analysis                           | TBD   | Not started |
@@ -236,7 +236,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 48-06-PLAN.md — Kick-off striker anchored by `slotId === 'ST'` formation slot instead of `number === 9`
+- [x] 48-06-PLAN.md — Kick-off striker anchored by `slotId === 'ST'` formation slot instead of `number === 9`
 
 **UI hint**: no — server-side logic only, plus one two-line display removal in `LineupAssignmentScreen.tsx` (plan 48-03); no UI-SPEC required
 
@@ -352,7 +352,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 
