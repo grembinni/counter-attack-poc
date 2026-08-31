@@ -162,7 +162,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
-| 47    | 5/6 | In Progress|  |
+| 47    | 6/6 | Complete   | 2026-08-31 |
 | 48    | Permanent Jersey Numbers                              | TBD   | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
@@ -204,7 +204,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 47-06-PLAN.md — Phase gate: clean `knip`, full workspace green, `docs/HIGHLIGHT-REFERENCE.md` card-selection section
+- [x] 47-06-PLAN.md — Phase gate: clean `knip`, full workspace green, `docs/HIGHLIGHT-REFERENCE.md` card-selection section
 
 **UI hint**: yes
 
@@ -335,7 +335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 
