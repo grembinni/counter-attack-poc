@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Roster Interaction Overhaul & Rules Audit
-status: completed
+status: executing
 stopped_at: Phase 48 context gathered
 last_updated: "2026-08-31T12:52:59.489Z"
-last_activity: "2026-08-31 - Completed quick task 260831-8rf: Fix draft-mode GK eligibility highlighting"
+last_activity: 2026-08-31
 progress:
   total_phases: 6
   completed_phases: 1
@@ -20,15 +20,15 @@ progress:
 
 Phase: 48
 Plan: Not started
-Status: Phase 47 complete — Phase 48 not started
-Last activity: 2026-08-31 - Completed quick task 260831-8rf: Fix draft-mode GK eligibility highlighting
+Status: Phase 48 context gathered — plan not started
+Last activity: 2026-08-31 - Gathered Phase 48 (Permanent Jersey Numbers) context via /gsd-discuss-phase
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-30 after v1.7 milestone completion)
 
 **Core value:** Two friends can open a browser, share a room code, and play a complete match of Counter Attack against each other in real time.
-**Current focus:** Phase 47 — select-based-roster-interaction
+**Current focus:** Phase 48 — permanent-jersey-numbers
 
 ## Phase Status
 
@@ -394,7 +394,7 @@ Known deferred items at close: 17 per the pre-close artifact audit (1 verificati
 Last session: 2026-08-31T12:52:59.481Z
 Stopped at: Phase 48 context gathered
 Resume file: .planning/phases/48-permanent-jersey-numbers/48-CONTEXT.md
-Resume: Phase 47 context gathered via `/gsd-discuss-phase 47` — scope was expanded live during discussion to retire drag-and-drop everywhere in `LineupAssignmentScreen.tsx` (mid-match positioning/substitution, Standard pregame swap, and draft-mode pack/bench/lineup), not just the mid-match roster screen. REQUIREMENTS.md (ROSTER-07/08 added) and ROADMAP.md Phase 47 (Goal + success criteria 6-7) updated to match; see `.planning/phases/47-select-based-roster-interaction/47-CONTEXT.md`. 5 phases total: 47 Select-Based Roster Interaction (highest regression risk, isolated, built/stabilized first) → 48 Permanent Jersey Numbers (depends on 47's applyRosterReposition rebuild) → 49 GK Box-Entry Sequencing & Final-Third Confirm Fixes (independent, combined) → 50 Foul→Injury→Booking Banner Sequencing (standalone investigation-first debug task) → 51 Rules-Fidelity Gap Analysis (audit-only, sequenced last). Next step is to plan Phase 47 (`/gsd-plan-phase 47`).
+Resume: Phase 48 context gathered via `/gsd-discuss-phase 48` (Phase 47 — Select-Based Roster Interaction — is complete). Locked: numbers stay slot-derived for starting-XI (1-11 by formation slot, unchanged convention) and random 15-99 for bench, unique per team, computed once at squad-build/draft-complete and never re-rolled once assigned — applies uniformly to standard and draft mode, starters and bench alike. Kickoff-striker lookup (NUMBER-03) replaces `number === 9` with a formation-slot-based lookup (`slotId === 'ST'`), not the player's own identity `role` field. See `.planning/phases/48-permanent-jersey-numbers/48-CONTEXT.md`. 5 phases total: 47 Select-Based Roster Interaction (complete) → 48 Permanent Jersey Numbers (context gathered, depends on 47's applyRosterReposition rebuild) → 49 GK Box-Entry Sequencing & Final-Third Confirm Fixes (independent, combined) → 50 Foul→Injury→Booking Banner Sequencing (standalone investigation-first debug task) → 51 Rules-Fidelity Gap Analysis (audit-only, sequenced last). Next step is to plan Phase 48 (`/gsd-plan-phase 48`).
 
 ## Performance Metrics
 
