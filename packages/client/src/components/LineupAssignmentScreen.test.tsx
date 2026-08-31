@@ -13,7 +13,9 @@
  * - ROSTER-07: Standard pregame lineup click-to-swap (own describe block).
  * - ROSTER-08: draft pack/slot/bench click-select, including the five
  *   dispatch shapes (pick->slot, pick->bench, slot->slot, slot->bench,
- *   bench->slot) and the GK-slot rule.
+ *   bench->slot) and the GK-slot rule — enforced in the eligibility
+ *   highlight itself (a GK-violating slot is never highlighted and a click
+ *   on it is a silent no-op), not via a client-side rejection message.
  * - D-06/D-07/D-08: substitution-mode bench-first selection with a
  *   switch-on-reselect gesture (D-07), contrasted with positioning-mode's
  *   strict deselect-first gesture (D-08) — each has its own dedicated test.
@@ -438,15 +440,16 @@ describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01
     others.forEach((el) => expect(el.className).not.toMatch(/statCardSelected/));
   });
 
-  it('2. with a pack card selected, every filled lineup-slot card, every empty slot, and the bench carousel carry /statCardEligible/', () => {
+  it('2. with a pack card selected, every lineup slot except the GK slot, and the bench carousel carry /statCardEligible/', () => {
     const { container } = renderDraft();
     const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
     fireEvent.click(packCard);
 
     const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
     const eligibleInGrid = grid.querySelectorAll('[class*="statCardEligible"]');
-    // 2 filled slots (p001, p002) + 9 empty slots = 11 eligible targets in the grid.
-    expect(eligibleInGrid.length).toBe(11);
+    // Slot 0 (GK, p001) is excluded because a non-GK card is selected, leaving
+    // 1 filled slot (p002) + 9 empty slots = 10 eligible targets in the grid.
+    expect(eligibleInGrid.length).toBe(10);
 
     const bench = screen.getByTestId('bench-carousel');
     expect(bench.className).toMatch(/statCardEligible/);
@@ -562,43 +565,126 @@ describe('LineupAssignmentScreen — Phase 47 draft-mode click-select (ROSTER-01
     expect(container.querySelector('[class*="statCardEligible"]')).toBeNull();
   });
 
-  it('11. GK rule preserved: rejects a non-GK card onto the GK slot and a GK card onto a non-GK slot, with distinct messages, calling neither callback', () => {
-    const onDraftPick = vi.fn();
-    const onDraftRearrange = vi.fn();
-    const { container } = renderDraft({ onDraftPick, onDraftRearrange });
-
-    // Non-GK pack card (p013, chase, DEF) selected -> GK slot0 (p001) rejected.
-    const nonGkPackCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
-    fireEvent.click(nonGkPackCard);
+  it('11. GK-from-slot: a GK selected from its filled lineup slot leaves NO slot eligible; only the bench is', () => {
+    const { container } = renderDraft();
     const p001 = PLAYER_BY_ID.get('p001')!;
     const gkSlotCard = screen
       .getByText(`${p001.firstName} ${p001.lastName}`)
       .closest('[data-roster-card]') as HTMLElement;
-    // Slot 0 must still carry statCardEligible while a non-GK card is selected —
-    // the rejection message is the feedback path; hiding the highlight would
-    // make it unreachable.
-    expect(gkSlotCard.className).toMatch(/statCardEligible/);
     fireEvent.click(gkSlotCard);
-    expect(
-      screen.getByText('Swap rejected — only a goalkeeper card can be placed here.'),
-    ).toBeDefined();
-    expect(onDraftPick).not.toHaveBeenCalled();
-    expect(onDraftRearrange).not.toHaveBeenCalled();
+    expect(gkSlotCard.className).toMatch(/statCardSelected/);
 
-    // GK pack card (p012, common) selected -> a non-GK empty slot rejected.
+    // Slot 0 is excluded as the selection's own origin slot; slots 1-10 are
+    // excluded by the GK rule (a GK card fits only slot 0).
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    const eligibleInGrid = grid.querySelectorAll('[class*="statCardEligible"]');
+    expect(eligibleInGrid.length).toBe(0);
+
+    const bench = screen.getByTestId('bench-carousel');
+    expect(bench.className).toMatch(/statCardEligible/);
+  });
+
+  it('12. GK-from-pack: only the GK slot and the bench are eligible', () => {
+    const { container } = renderDraft();
     const p012 = PLAYER_BY_ID.get('p012')!;
     const gkPackCard = screen
       .getByText(`${p012.firstName} ${p012.lastName}`)
       .closest('[data-roster-card]') as HTMLElement;
     fireEvent.click(gkPackCard);
-    const nonGkEmptySlot = container.querySelector('[data-slot-index="2"]') as HTMLElement;
-    fireEvent.click(nonGkEmptySlot);
-    expect(screen.getByText('Swap rejected — goalkeeper slot requires a GK card.')).toBeDefined();
-    expect(onDraftPick).not.toHaveBeenCalled();
-    expect(onDraftRearrange).not.toHaveBeenCalled();
+
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    const eligibleInGrid = grid.querySelectorAll('[class*="statCardEligible"]');
+    expect(eligibleInGrid.length).toBe(1);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(eligibleInGrid[0]).toBe(gkSlotCard);
+
+    const bench = screen.getByTestId('bench-carousel');
+    expect(bench.className).toMatch(/statCardEligible/);
   });
 
-  it('12. waitingForOpponent true: clicking a pack card does not select it', () => {
+  it('13. GK-from-bench: only the GK slot is eligible; the bench itself is not', () => {
+    const { container } = renderDraft({
+      draftView: makeDraftView({ benchIds: ['p023', 'p004'] }),
+    });
+    const p023 = PLAYER_BY_ID.get('p023')!;
+    const gkBenchCard = screen
+      .getByText(`${p023.firstName} ${p023.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(gkBenchCard);
+
+    const grid = container.querySelector('[class*="formationColumns"]') as HTMLElement;
+    const eligibleInGrid = grid.querySelectorAll('[class*="statCardEligible"]');
+    expect(eligibleInGrid.length).toBe(1);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(eligibleInGrid[0]).toBe(gkSlotCard);
+
+    // Bench-sourced selections can never target the bench — existing rule,
+    // re-proven here for the GK case.
+    const bench = screen.getByTestId('bench-carousel');
+    expect(bench.className).not.toMatch(/statCardEligible/);
+  });
+
+  it('14. non-GK from the pack: the GK slot is never eligible and clicking it is a silent no-op', () => {
+    const onDraftPick = vi.fn();
+    const onDraftRearrange = vi.fn();
+    const { container } = renderDraft({ onDraftPick, onDraftRearrange });
+    const nonGkPackCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
+    fireEvent.click(nonGkPackCard);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(gkSlotCard.className).not.toMatch(/statCardEligible/);
+
+    fireEvent.click(gkSlotCard);
+    expect(onDraftPick).not.toHaveBeenCalled();
+    expect(onDraftRearrange).not.toHaveBeenCalled();
+    // D-04 silent no-op replaces the old client-side rejection message.
+    expect(
+      screen.queryByText('Swap rejected — only a goalkeeper card can be placed here.'),
+    ).toBeNull();
+  });
+
+  it('15. non-GK from the bench: the GK slot is never eligible', () => {
+    renderDraft();
+    const p003 = PLAYER_BY_ID.get('p003')!;
+    const nonGkBenchCard = screen
+      .getByText(`${p003.firstName} ${p003.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(nonGkBenchCard);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(gkSlotCard.className).not.toMatch(/statCardEligible/);
+  });
+
+  it('16. non-GK from another slot: the GK slot is never eligible', () => {
+    renderDraft();
+    const p002 = PLAYER_BY_ID.get('p002')!;
+    const nonGkSlotCard = screen
+      .getByText(`${p002.firstName} ${p002.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    fireEvent.click(nonGkSlotCard);
+
+    const p001 = PLAYER_BY_ID.get('p001')!;
+    const gkSlotCard = screen
+      .getByText(`${p001.firstName} ${p001.lastName}`)
+      .closest('[data-roster-card]') as HTMLElement;
+    expect(gkSlotCard.className).not.toMatch(/statCardEligible/);
+  });
+
+  it('17. waitingForOpponent true: clicking a pack card does not select it', () => {
     const { container } = renderDraft({ draftView: makeDraftView({ waitingForOpponent: true }) });
     const packCard = container.querySelector(`.${TIER_CARD_CLASS.chase}`) as HTMLElement;
     fireEvent.click(packCard);

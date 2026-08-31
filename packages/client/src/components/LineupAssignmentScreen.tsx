@@ -862,45 +862,30 @@ export function LineupAssignmentScreen({
     });
   }
 
-  /** Phase 47 (D-11/ROSTER-08): pure predicate extracted from `rejectForGKRule`
-   * below — contains only the two GK-rule conditions, no message side effect,
-   * so it is safe to call from render-time eligibility computation. */
+  /** Phase 47 (D-11/ROSTER-08): pure GK-rule predicate — a GK card fits only the
+   * GK slot (index 0), and only a GK card fits it. No message side effect, so it
+   * is safe to call from render-time eligibility computation
+   * (`isDraftSlotEligible`, its sole caller as of 260831-8rf). */
   function violatesGKRule(slotIndex: number, cardId: string): boolean {
     const isGKSlot = slotIndex === 0;
     const cardIsGK = isCardGK(cardId);
     return (isGKSlot && !cardIsGK) || (!isGKSlot && cardIsGK);
   }
 
-  /** D-09: only a GK card may land on the GK slot (index 0), and only the GK slot accepts a
-   * GK card — both directions rejected client-side for UX only (server, Plan 04, is authoritative).
-   * Phase 47: rewritten to call `violatesGKRule`; keeps the message side effect, so it must
-   * only be called from a click-completion handler, never from render-time eligibility. */
-  function rejectForGKRule(slotIndex: number, cardId: string): boolean {
-    const isGKSlot = slotIndex === 0;
-    if (!violatesGKRule(slotIndex, cardId)) return false;
-    if (isGKSlot) {
-      showDraftRejection('Swap rejected — only a goalkeeper card can be placed here.');
-    } else {
-      showDraftRejection('Swap rejected — goalkeeper slot requires a GK card.');
-    }
-    return true;
-  }
-
-  function showDraftRejection(message: string) {
-    setRejectionMessage(message);
-    setTimeout(() => setRejectionMessage(null), 2000);
-  }
-
-  /** Phase 47 (ROSTER-02/08): every slot other than the selection's own origin
-   * slot is an eligible target. Deliberately does NOT consult `violatesGKRule`
-   * here — the pre-Phase-47 target-hover logic applied no GK check when
-   * highlighting, and the GK rule is enforced at completion time by
-   * `rejectForGKRule`'s user-facing message; excluding GK-violating slots here
-   * would make that message unreachable. */
+  /** Phase 47 gap-closure (260831-8rf, ROSTER-02/08): the eligible-target highlight
+   * itself reflects true GK-rule eligibility — slot 0 requires a GK card, and a GK
+   * card fits only slot 0. Reversed after Phase 47 live user testing found the
+   * highlight-everything-then-reject model to be wrong UX: a highlight is a promise
+   * that the target is legal, so the highlight must be gated on `violatesGKRule` the
+   * same way the completion handler is. The client-side rejection message for this
+   * case is gone because the invalid dispatch can no longer be produced through the
+   * UI — the server (`GK_SLOT_REQUIRES_GK` / `NON_GK_SLOT_REJECTS_GK`) remains the
+   * authoritative backstop, still surfaced through the `gameError` useEffect above. */
   function isDraftSlotEligible(selection: DraftSelection, slotIndex: number): boolean {
     return (
       lineupConfirmed !== true &&
-      !(selection.source === 'slot' && selection.slotIndex === slotIndex)
+      !(selection.source === 'slot' && selection.slotIndex === slotIndex) &&
+      !violatesGKRule(slotIndex, selection.cardId)
     );
   }
 
@@ -939,10 +924,6 @@ export function LineupAssignmentScreen({
       return;
     }
     if (!isDraftSlotEligible(draftSelection, slotIndex)) return; // D-04 no-op
-    if (rejectForGKRule(slotIndex, draftSelection.cardId)) {
-      setDraftSelection(null); // message already shown
-      return;
-    }
     if (draftSelection.source === 'pack') {
       onDraftPick?.(draftSelection.cardId, { type: 'slot', slotIndex });
     } else if (draftSelection.source === 'slot') {
