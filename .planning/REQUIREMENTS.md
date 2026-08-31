@@ -25,10 +25,10 @@ Replaces drag-and-drop with the app's existing click-to-select interaction model
 Jersey numbers currently derive from formation/lineup slot and get re-derived at multiple reset points. This makes numbers a stable, permanent part of player identity.
 
 - [x] **NUMBER-01**: Each player is assigned a jersey number once at squad-build time, independent of formation/lineup slot
-- [ ] **NUMBER-02**: A player's jersey number persists unchanged through repositioning, substitution, goal reset, and half-time reset
+- [x] **NUMBER-02**: A player's jersey number persists unchanged through repositioning, substitution, goal reset, and half-time reset
 - [x] **NUMBER-03**: The kickoff-striker anchor lookup no longer depends on `number === 9`; it uses a role-based lookup instead
-- [ ] **NUMBER-04**: `applyRosterContinuity` preserves each player's permanent number across all reset call sites (goal-via-shot, goal-via-penalty, half-time, and any other reset site)
-- [ ] **NUMBER-05**: Draft-mode bench players also receive a permanent number assigned once, not re-rolled
+- [x] **NUMBER-04**: `applyRosterContinuity` preserves each player's permanent number across all reset call sites (goal-via-shot, goal-via-penalty, half-time, and any other reset site)
+- [x] **NUMBER-05**: Draft-mode bench players also receive a permanent number assigned once, not re-rolled
 
 ### GK Box-Entry-Before-Dive Resequencing
 
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROSTER-07 | Phase 47 | Complete |
 | ROSTER-08 | Phase 47 | Complete |
 | NUMBER-01 | Phase 48 | Complete |
-| NUMBER-02 | Phase 48 | Pending |
+| NUMBER-02 | Phase 48 | Complete |
 | NUMBER-03 | Phase 48 | Complete |
-| NUMBER-04 | Phase 48 | Pending |
-| NUMBER-05 | Phase 48 | Pending |
+| NUMBER-04 | Phase 48 | Complete |
+| NUMBER-05 | Phase 48 | Complete |
 | GKSEQ-01 | Phase 49 | Pending |
 | GKSEQ-02 | Phase 49 | Pending |
 | GKSEQ-03 | Phase 49 | Pending |
