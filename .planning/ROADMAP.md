@@ -163,7 +163,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
 | 47    | 6/6 | Complete    | 2026-08-31 |
-| 48    | Permanent Jersey Numbers                              | TBD   | Not started |
+| 48    | Permanent Jersey Numbers                              | 6     | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
 | 51    | Rules-Fidelity Gap Analysis                           | TBD   | Not started |
@@ -221,7 +221,24 @@ Plans:
 4. No reset path (goal-via-shot, goal-via-penalty, half-time, or any other `applyRosterContinuity` call site) ever reassigns a player's permanent number to someone else.
 5. Draft-mode bench players also receive a permanent number assigned once, not re-rolled on a later view or redraw.
 
-**Plans**: TBD
+**Plans**: 6 plans across 3 waves
+Plans:
+**Wave 1**
+
+- [ ] 48-01-PLAN.md — `applyRosterReposition`: jersey number follows the person, not the slot (+ reset-survival regression lock)
+- [ ] 48-02-PLAN.md — `backfillBenchNumbers` helper + standard-mode bench numbers sourced from the crypto-backed 15-99 draw
+- [ ] 48-03-PLAN.md — Standard pregame bench stops displaying a client-fabricated `PoolPlayer.number`
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 48-04-PLAN.md — `applySubstitution`: substitute keeps their own number; outgoing player's bench entry keeps theirs
+- [ ] 48-05-PLAN.md — Eager bench-number backfill on every post-`draftComplete` `DRAFT_REARRANGE` (closes the orphan-to-`0` gap)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 48-06-PLAN.md — Kick-off striker anchored by `slotId === 'ST'` formation slot instead of `number === 9`
+
+**UI hint**: no — server-side logic only, plus one two-line display removal in `LineupAssignmentScreen.tsx` (plan 48-03); no UI-SPEC required
 
 ### Phase 49: GK Box-Entry Sequencing & Final-Third Confirm Fixes
 
