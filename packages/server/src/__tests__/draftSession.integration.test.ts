@@ -883,6 +883,113 @@ describe('Post-draft rearrangement', () => {
     expect(afterSecondMove.subStep).toBe(beforeView.subStep);
   }, 40000);
 
+  it('NUMBER-05: a lineup card rearranged onto the bench after draftComplete gets a valid unique 15-99 number, never 0', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+
+    expect(driver.getViewA().draftComplete).toBe(true);
+
+    const beforeView = driver.getViewA();
+    const movedCardId = beforeView.lineupSlots[1]!;
+    expect(movedCardId).not.toBeNull();
+    // Pre-condition guard: this card must NOT already have a bench number, otherwise the
+    // regression this test targets could pass trivially without exercising the backfill.
+    expect(beforeView.benchNumbers[movedCardId]).toBeUndefined();
+
+    const rearrangePromise = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'bench', benchIndex: 0 },
+    });
+    const afterMove = await rearrangePromise;
+
+    expect(afterMove.benchIds).toContain(movedCardId);
+    const movedNumber = afterMove.benchNumbers[movedCardId];
+    expect(movedNumber).toBeDefined();
+    expect(movedNumber).not.toBe(0);
+    expect(movedNumber!).toBeGreaterThanOrEqual(15);
+    expect(movedNumber!).toBeLessThanOrEqual(99);
+
+    // Every distinct bench id has a number, and all those numbers are distinct.
+    const uniqueBenchIds = new Set(afterMove.benchIds);
+    const numbers = [...uniqueBenchIds].map((id) => afterMove.benchNumbers[id]!);
+    for (const n of numbers) {
+      expect(n).toBeDefined();
+    }
+    expect(new Set(numbers).size).toBe(numbers.length);
+
+    // D-05: every bench id that already had a number before the rearrange still has the
+    // identical value after it — nothing was re-rolled.
+    for (const [id, num] of Object.entries(beforeView.benchNumbers)) {
+      expect(afterMove.benchNumbers[id]).toBe(num);
+    }
+  }, 40000);
+
+  it('NUMBER-05/D-05: repeated post-draftComplete rearranges never re-roll an already-assigned bench number', async () => {
+    const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
+    const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
+
+    expect(driver.getViewA().draftComplete).toBe(true);
+
+    const beforeView = driver.getViewA();
+    const preExistingNumbers = { ...beforeView.benchNumbers };
+    const firstCardId = beforeView.lineupSlots[1]!;
+    const secondCardId = beforeView.lineupSlots[2]!;
+    expect(firstCardId).not.toBeNull();
+    expect(secondCardId).not.toBeNull();
+
+    const firstMove = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 1 },
+      to: { type: 'bench', benchIndex: 0 },
+    });
+    const afterFirstMove = await firstMove;
+    const firstNumber = afterFirstMove.benchNumbers[firstCardId];
+    expect(firstNumber).toBeDefined();
+    expect(firstNumber!).toBeGreaterThanOrEqual(15);
+    expect(firstNumber!).toBeLessThanOrEqual(99);
+
+    const secondMove = new Promise<DraftClientView>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out')), 1500);
+      clientA.once(ServerEvents.DRAFT_STATE_UPDATED, (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      });
+    });
+    clientA.emit(ClientEvents.DRAFT_REARRANGE, {
+      from: { type: 'slot', slotIndex: 2 },
+      to: { type: 'bench', benchIndex: 0 },
+    });
+    const afterSecondMove = await secondMove;
+
+    // The first card's number is byte-identical to what it received on the first move.
+    expect(afterSecondMove.benchNumbers[firstCardId]).toBe(firstNumber);
+
+    const secondNumber = afterSecondMove.benchNumbers[secondCardId];
+    expect(secondNumber).toBeDefined();
+    expect(secondNumber!).toBeGreaterThanOrEqual(15);
+    expect(secondNumber!).toBeLessThanOrEqual(99);
+
+    // The two new numbers differ from each other and from every pre-existing bench number.
+    expect(secondNumber).not.toBe(firstNumber);
+    for (const num of Object.values(preExistingNumbers)) {
+      expect(firstNumber).not.toBe(num);
+      expect(secondNumber).not.toBe(num);
+    }
+  }, 40000);
+
   it('DRAFT_REARRANGE from a side is rejected with LINEUP_ALREADY_CONFIRMED once that side has confirmed', async () => {
     const { clientA, clientB, viewA, viewB } = await setupThroughDraftUniformConfirm();
     const driver = await driveDraftToCompletionFillingLineups(clientA, clientB, viewA, viewB);
