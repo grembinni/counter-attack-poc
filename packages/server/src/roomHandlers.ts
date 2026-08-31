@@ -61,6 +61,7 @@ import {
   applyRearrange,
   advanceSubStep,
   assignBenchNumbers,
+  backfillBenchNumbers,
   buildDraftView,
 } from './draftSession.js';
 import type { DraftSide } from './draftSession.js';
@@ -1010,10 +1011,11 @@ export function registerRoomHandlers(
           // same helper the draft-complete transition above already calls with the same
           // randomInt). PoolPlayer.number (packages/shared/src/teams.ts:25-26) is a
           // squad-relative identity field and is never a match jersey number for a bench
-          // player. assignBenchNumbers (not backfillBenchNumbers) is correct here: this
-          // is the one-time initial draw for a bench whose full membership is already
-          // known and which has no pre-existing numbers, so the fill-gaps wrapper would
-          // be a no-op with extra indirection — do not "upgrade" this call.
+          // player. assignBenchNumbers (not the fill-gaps-never-re-roll helper used by the
+          // draft-complete and DRAFT_REARRANGE call sites below) is correct here: this is
+          // the one-time initial draw for a bench whose full membership is already known
+          // and which has no pre-existing numbers, so that wrapper would be a no-op with
+          // extra indirection — do not "upgrade" this call.
           const homeBenchNumbers = assignBenchNumbers(
             homeBenchPlayers.map((p) => p.id),
             randomInt,
@@ -1168,13 +1170,13 @@ export function registerRoomHandlers(
 
         room.draftSession = advanceSubStep(room.draftSession);
 
-        // D-15/D-16/D-23: on the transition into draftComplete, assign bench numbers once.
+        // D-15/D-16/D-23/Phase 48 D-05: on the transition into draftComplete, assign bench
+        // numbers via the idempotent fill-gaps-never-re-roll helper: both number maps are
+        // empty on the first transition, so it draws for every id exactly as before, but a
+        // re-entered transition can never re-roll an already-assigned number.
         if (room.draftSession.draftComplete) {
-          room.draftSession = {
-            ...room.draftSession,
-            homeBenchNumbers: assignBenchNumbers(room.draftSession.homeBenchIds, randomInt),
-            awayBenchNumbers: assignBenchNumbers(room.draftSession.awayBenchIds, randomInt),
-          };
+          room.draftSession = backfillBenchNumbers(room.draftSession, 'home', randomInt);
+          room.draftSession = backfillBenchNumbers(room.draftSession, 'away', randomInt);
         }
 
         // D-14: both players' views may have changed (packs may have swapped) — unicast both.
@@ -1279,7 +1281,24 @@ export function registerRoomHandlers(
         }
         room.draftSession = result.session;
 
-        // Requester-private emit only — mirrors LINEUP_SWAP (D-12/D-14 privacy).
+        // Phase 48 / 48-RESEARCH.md Critical Finding 3 / D-05: rearranging a card from a
+        // lineup slot onto the bench after draftComplete leaves it with no benchNumbers
+        // entry — the read site's `?? 0` fallback would silently give it jersey number 0.
+        // The draftComplete gate lives at THIS call site, not inside the helper, deliberately:
+        // bench numbers do not exist at all before the draft completes — BenchCarousel only
+        // shows `#n` once draftView.benchNumbers is populated — so filling gaps during an
+        // in-progress draft would make numbers appear on bench cards earlier than they do
+        // today, a behavior change this phase does not want. Only the acting `side` is
+        // backfilled because DRAFT_REARRANGE can only ever mutate the requester's own
+        // benchIds (side is resolved from socket.data.playerSlot under T-29-02).
+        if (room.draftSession.draftComplete) {
+          room.draftSession = backfillBenchNumbers(room.draftSession, side, randomInt);
+        }
+
+        // Requester-private emit only — mirrors LINEUP_SWAP (D-12/D-14 privacy). Placing the
+        // backfill above this line is load-bearing: the emitted buildDraftView(...) must
+        // already carry the new number, otherwise the client's bench carousel renders the
+        // just-benched card with no number until the next update.
         socket.emit(ServerEvents.DRAFT_STATE_UPDATED, buildDraftView(room.draftSession, side));
       } finally {
         room.isProcessing = false;
