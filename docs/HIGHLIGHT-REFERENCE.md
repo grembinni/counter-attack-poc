@@ -13,7 +13,8 @@ distinct, independently-composable mechanisms:
 
 This document is the single source of truth (HILITE-05) for every highlight/ring
 color in the codebase. Do not add a new color literal to `HexCell.tsx`,
-`PieceOverlay.tsx`, or `BallLocationRing.tsx` without adding a corresponding row
+`PieceOverlay.tsx`, `BallLocationRing.tsx`, `HeaderTargetRing.tsx`, or
+`LineupAssignmentScreen.module.css` without adding a corresponding row
 here.
 
 ## Traffic-Light Semantic Legend (D-01)
@@ -33,6 +34,12 @@ exactly one meaning — the offside ring (`PieceOverlay.tsx` `isOffside`,
 `#dc2626`). The goal/shot-target hex tint is **purple** (`#a855f7` family),
 not red. This rule does not extend to chrome (non-highlight) uses of red
 elsewhere in the app, which are governed by `tokens.css`, not this document.
+
+**Card selection consistency (Phase 47):** `LineupAssignmentScreen.module.css`'s
+`.statCardSelected` / `.statCardEligible` classes (§4) reuse this same
+green/blue vocabulary — green for "the current selection," blue for "an
+eligible target for the pending action" — matching `PieceOverlay.tsx`'s
+piece-ring semantics (§2a) rather than introducing a card-local meaning.
 
 ---
 
@@ -223,7 +230,34 @@ Cross-reference: `packages/client/src/components/HeaderTargetRing.tsx`
 
 ---
 
-## 4. Valid-Move Tint Consistency
+## 4. Card Selection (`LineupAssignmentScreen.module.css`)
+
+Phase 47 (Select-Based Roster Interaction) retired native HTML5 drag-and-drop
+from `LineupAssignmentScreen.tsx` in favor of the same click-to-select model
+Section 2a already establishes for pitch pieces. Card selection reuses the
+same two colors — green means "this is the current selection," blue means
+"clicking this card completes the pending action" — as a value-matched (not
+object-identity-shared) pair of CSS Module classes, this document's fifth
+consumer alongside `HexCell.tsx`, `PieceOverlay.tsx`, `BallLocationRing.tsx`,
+and `HeaderTargetRing.tsx`.
+
+| Class               | Semantic                                           | Border              | Glow                                | Source token                                                                                                        |
+| ------------------- | -------------------------------------------------- | ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `.statCardSelected` | 🟢 this card is the current selection              | `2px solid #22c55e` | `0 0 0 2px rgba(34, 197, 94, 0.4)`  | Value-matched to `PieceOverlay.tsx`'s exported `ACTIVE_RING_STROKE` (`selectionState="active"`), documented in §2a. |
+| `.statCardEligible` | 🔵 clicking this card completes the pending action | `2px solid #60a5fa` | `0 0 0 2px rgba(96, 165, 250, 0.4)` | Value-matched to `PieceOverlay.tsx`'s `selectionState="selectable"` ring stroke, documented in §2a.                 |
+
+Notes:
+
+1. These are CSS Module literals, not a TypeScript import of `HIGHLIGHT_STYLES`/`RING_STYLES` — cards are the only CSS-Modules-styled selection surface in the app; `HexCell.tsx`/`PieceOverlay.tsx` style SVG inline, so object-identity reuse across that boundary is not available. Per UI-SPEC §Color, the D-03 requirement is satisfied by value-matching the hex literals, not by object-identity reuse.
+2. These classes must remain the last border-declaring rules in `LineupAssignmentScreen.module.css` — they are composed onto `.statCardSentOff`, `.benchSlot`, `.benchCarousel`, and the `.cardTier*` rules, all of which also declare `border`, and CSS Modules resolves conflicting declarations by declaration order.
+3. Gold (`--color-accent-gold`) is deliberately NOT used for the card eligible-target state (D-03) — gold stays reserved for confirm/required-action affordances app-wide (see the 🟨 Gold row in the Traffic-Light Semantic Legend above, and §2b).
+
+Cross-reference: `packages/client/src/components/LineupAssignmentScreen.module.css`
+(`.statCardSelected`, `.statCardEligible` classes); `.planning/phases/47-select-based-roster-interaction/47-UI-SPEC.md` §Color for the resolved swatch decision.
+
+---
+
+## 5. Valid-Move Tint Consistency
 
 **The rule:** every `GamePhase` that populates `useGameStore`'s `validMoveHexes` (via one
 of the `compute*ValidHexes` helpers in `useGameStore.ts`) tints those hexes with the shared
