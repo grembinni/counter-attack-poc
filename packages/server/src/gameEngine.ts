@@ -3678,12 +3678,14 @@ export function applySubstitution(
 
   // --- All guards passed — build the new state immutably. ---
 
-  // SUB-03: the substitute inherits the slot's `id`/`teamId`/`number`/`position` (via the
+  // SUB-03: the substitute inherits the slot's `id`/`teamId`/`position` (via the
   // `...outPiece` spread below) — this is what makes `ball.carrierId`, `movedPieceIds`,
   // `paceUsedByPieceId` and every restart-stage per-piece budget continue to point at the
   // slot. T-40-06: the substitute deliberately inherits the slot's already-spent
   // movement/reposition budget for the current cycle — a substitution can never be used to
   // refresh a budget. No per-cycle tracking field is scrubbed by this function.
+  // NUMBER-02 (Phase 48/D-05): `number` is superseded by the explicit override below — the
+  // substitute keeps their OWN permanent bench jersey number, not the vacated slot's.
   const newPiece: PlayerPiece = {
     ...outPiece,
     playerId: inPoolPlayer.id,
@@ -3705,18 +3707,30 @@ export function applySubstitution(
     redCarded: false,
     yellowCards: 0,
     injuryCount: 0,
+    // NUMBER-02 (Phase 48/D-05): the substitute keeps their own bench jersey number
+    // (`benchEntry` is the INCOMING player's own bench entry, resolved above by
+    // `inPlayerId`) rather than inheriting it from the `...outPiece` spread. A substitute
+    // can therefore legitimately wear a number outside 1-11 while on the pitch, the same
+    // as real football.
+    number: benchEntry.jerseyNumber,
   };
   const newPieces = state.pieces.map((p) => (p.id === outPieceId ? newPiece : p));
 
-  // The outgoing player takes over the vacated bench card in place — bench length never
-  // changes; the incoming player simply disappears from the bench. Any OTHER entry with
-  // `status: 'redCarded'` is copied through untouched (D-13: a substitution never rewrites
-  // a red-card entry). The other team's bench array is re-used by reference.
+  // The outgoing player takes over the vacated bench card SLOT in place — bench length
+  // never changes; the incoming player simply disappears from the bench. The number
+  // written into that slot is the departing player's own (NUMBER-02, Phase 48/D-05),
+  // mirroring `relocateRedCardedToBench` (line ~883), which already writes the departing
+  // piece's own `number` when a red-carded player is relocated to the bench. Any OTHER
+  // entry with `status: 'redCarded'` is copied through untouched (D-13: a substitution
+  // never rewrites a red-card entry). The other team's bench array is re-used by reference.
   const newTeamBench: BenchEntry[] = benchEntries.map((e) =>
     e.playerId === inPlayerId
       ? {
           playerId: outPiece.playerId!,
-          jerseyNumber: benchEntry.jerseyNumber,
+          // NUMBER-02 (Phase 48/D-05): the departing player's OWN number, not
+          // `benchEntry.jerseyNumber` (the incoming player's entry) — superseded from the
+          // pre-Phase-48 slot-inherits-the-number stance.
+          jerseyNumber: outPiece.number,
           status: 'subbedOut' as const,
           // ICON-03 (Phase 41, 41-02): carry the departing piece's card/injury state
           // forward so the bench card can render the same glyph as every other surface.
