@@ -44,10 +44,19 @@ describe('FORMATIONS registry — data integrity (Phase 23 Plan 01)', () => {
     }
   });
 
-  it('Test 5: every formation has exactly one slot with jerseyNumber === 9 (kick-off striker anchor)', () => {
+  it('NUMBER-03: every formation has exactly one slotId === ST slot (kick-off anchor target)', () => {
     for (const [id, formation] of Object.entries(FORMATIONS)) {
-      const strikers = formation.slots.filter((s) => s.jerseyNumber === 9);
-      expect(strikers.length, `${id} should have exactly one #9 slot`).toBe(1);
+      const strikers = formation.slots.filter((s) => s.slotId === 'ST');
+      expect(strikers.length, `${id} should have exactly one ST slot`).toBe(1);
+      expect(strikers[0]!.slotRole, `${id} ST slot's slotRole`).toBe('FWD-central');
+      // Incidental authored data only (Phase 48 / D-07): every formation happens to assign
+      // jerseyNumber: 9 to its ST slot, but the kick-off anchor no longer keys on this number —
+      // it keys on slotId === 'ST' above. This assertion pins the sanity of the authored data,
+      // not the anchor mechanism.
+      expect(
+        strikers[0]!.jerseyNumber,
+        `${id} ST slot's jerseyNumber (incidental, not anchor key)`,
+      ).toBe(9);
     }
   });
 
