@@ -3792,14 +3792,15 @@ export type ApplyRosterRepositionResult =
  * mutation, then the new state is built as a single set of immutable spreads —
  * `state` itself is never mutated.
  *
- * **Swap semantics (locked):** the swap moves the OCCUPANT between slots — `id`,
- * `position` and `number` stay bound to the slot; everything else (identity, all nine
- * numeric attributes, card/injury/on-pitch state) travels with the person. This model
- * is required for three reasons, recorded here rather than at each call site:
+ * **Swap semantics (locked):** the swap moves the OCCUPANT between slots — `id` and
+ * `position` stay bound to the slot; `number` travels with the PERSON (Phase 48,
+ * NUMBER-01/NUMBER-02, superseding the Phase 42 slot-bound stance recorded below).
+ * Everything else (identity, all nine numeric attributes, card/injury/on-pitch state)
+ * also travels with the person. This model is required for three reasons, recorded
+ * here rather than at each call site:
  *
- * 1. It is byte-for-byte the SUB-03 inheritance contract (`buildSquadPieces`: `id` is
- *    slot identity; `applySubstitution` above: the substitute inherits slot, jersey
- *    number and position).
+ * 1. It is byte-for-byte the SUB-03 slot-identity contract (`buildSquadPieces`: `id`
+ *    is slot identity).
  * 2. `applyRosterContinuity` (immediately below) overlays a rebuilt kick-off formation
  *    by `id` and takes ONLY `position` from the reset array, keeping identity from the
  *    live roster — so a swap expressed as identity-follows-slot survives every goal and
@@ -3808,9 +3809,9 @@ export type ApplyRosterRepositionResult =
  * 3. The mid-match roster grid groups cards by the slot index parsed from `piece.id`,
  *    so identity-follows-slot is what makes the dragged card visibly move columns.
  *
- * On-pitch OBSERVABLE state is identical either way (the same person ends up standing
- * on the same hex wearing the same slot's number) — the difference is purely which slot
- * id holds whom, which is what resets and grouping depend on.
+ * On-pitch OBSERVABLE state reflects this: the person ends up standing on the same hex
+ * wearing their own number — the difference is purely which slot id holds whom, which
+ * is what resets and grouping depend on.
  *
  * **This function never touches `phase`, `activeTeam`, `movementSlot`, `subsUsed`,
  * `addedTime` or `addedTimeBonus` or `bench`** — a reposition is free, uncapped,
@@ -3921,17 +3922,19 @@ export function applyRosterReposition(
 
   // --- All guards passed — build the new state immutably. ---
 
+  // Phase 48/D-05: `number` is deliberately absent from these override lists — the
+  // person occupying a slot brings their own permanent number with them, superseding
+  // the pre-Phase-48 slot-bound stance documented above.
   const newA: PlayerPiece = {
     ...pieceB,
     id: pieceA.id,
     position: pieceA.position,
-    number: pieceA.number,
   };
+  // Phase 48/D-05: same rationale as newA above — number stays with pieceA, not slot B.
   const newB: PlayerPiece = {
     ...pieceA,
     id: pieceB.id,
     position: pieceB.position,
-    number: pieceB.number,
   };
   const newPieces = state.pieces.map((p) => {
     if (p.id === pieceIdA) return newA;
@@ -3939,6 +3942,11 @@ export function applyRosterReposition(
     return p;
   });
 
+  // Phase 48/D-05: jerseyNumberA/B intentionally read the PRE-swap pieces (pieceA/
+  // pieceB), same as playerAName/playerBName above. Under number-follows-person
+  // semantics, each person's number is unchanged by the swap, so the pre-swap read is
+  // equivalent to that same person's post-swap number — the ActionEvent shape in
+  // packages/shared/src/types.ts:894-895 needs no change.
   const repositionEvent: ActionEvent = {
     type: 'ROSTER_REPOSITION',
     team,
