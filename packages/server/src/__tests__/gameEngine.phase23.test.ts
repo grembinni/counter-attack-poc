@@ -3,13 +3,14 @@
  *
  * Tests 1-7 verify buildKickOffPieces (which wraps buildSquadPieces) against
  * the FORMATIONS registry: positions, away mirror, kick-off +4 shift (GK exempt),
- * jersey-#9 striker anchor, jersey source, and FORMATIONS table immutability (T-23-01).
+ * ST-slot striker anchor, jersey source, and FORMATIONS table immutability (T-23-01).
  *
  * Drives via buildKickOffPieces (exported) because buildSquadPieces is internal.
  * Uses 'city' (home) and 'crew' (away) — both have full 11-player squads in data/.
  */
 import { describe, it, expect } from 'vitest';
-import { FORMATIONS, PITCH_REGIONS } from '@counter-attack/shared';
+import { FORMATIONS, PITCH_REGIONS, getSquadPlayers } from '@counter-attack/shared';
+import type { FormationId } from '@counter-attack/shared';
 import { buildKickOffPieces } from '../gameEngine.js';
 
 const SELECTED_TEAMS = { home: 'city' as const, away: 'crew' as const };
@@ -63,23 +64,78 @@ describe('Phase 23 — formation-driven placement (FORM-04)', () => {
     expect(awayGK!.position).toEqual({ q: 34, r: 13 }); // 36 - 2 = 34
   });
 
-  it('Test 5: kicking team jersey-#9 piece anchored to kick-off hex', () => {
-    // home kicks → home #9 must be at PITCH_REGIONS.kickOffHex {q:18,r:13}
-    const pieces = buildKickOffPieces('home', SELECTED_TEAMS, FORMATION_442);
-    const homeStriker = pieces.find((p) => p.teamId === 'home' && p.number === 9);
-    expect(homeStriker, 'home #9 must exist').toBeDefined();
-    expect(homeStriker!.position).toEqual(PITCH_REGIONS.kickOffHex);
+  it('NUMBER-03: the kicking team ST-slot occupant is anchored to the kick-off hex in every formation, home- and away-attacking', () => {
+    // 4 formations x 2 attacking sides = 8 combinations. `pieces` is always
+    // `[...homeSquad, ...awaySquad]` with a 1:1 slot-to-player index mapping
+    // (buildSquadPieces), so the home squad occupies pieces[0..10] and the away
+    // squad occupies pieces[11..21].
+    const formationIds = Object.keys(FORMATIONS) as FormationId[];
+    for (const formationId of formationIds) {
+      const stSlotIndex = FORMATIONS[formationId].slots.findIndex((s) => s.slotId === 'ST');
+      expect(stSlotIndex, `${formationId} must have an ST slot`).not.toBe(-1);
+
+      for (const attackingTeam of ['home', 'away'] as const) {
+        const pieces = buildKickOffPieces(attackingTeam, SELECTED_TEAMS, {
+          home: formationId,
+          away: formationId,
+        });
+        const attackingIndex = attackingTeam === 'home' ? stSlotIndex : 11 + stSlotIndex;
+        const defendingIndex = attackingTeam === 'home' ? 11 + stSlotIndex : stSlotIndex;
+        const attackingPiece = pieces[attackingIndex]!;
+        const defendingPiece = pieces[defendingIndex]!;
+
+        expect(
+          attackingPiece.position,
+          `${formationId}/${attackingTeam}-attacking: attacking ST-slot occupant must be at kickOffHex`,
+        ).toEqual(PITCH_REGIONS.kickOffHex);
+        expect(
+          defendingPiece.position,
+          `${formationId}/${attackingTeam}-attacking: defending ST-slot occupant must NOT be at kickOffHex`,
+        ).not.toEqual(PITCH_REGIONS.kickOffHex);
+      }
+    }
   });
 
-  it('Test 6: piece jersey number comes from formation slot (not squad number)', () => {
+  it('D-01: a starting-XI piece number comes from its formation slot, resolved by slot index', () => {
     const pieces = buildKickOffPieces('home', SELECTED_TEAMS, FORMATION_442);
-    // Kicking-team striker is identified by number=9 (formation slot), not role
-    const homeStriker = pieces.find((p) => p.teamId === 'home' && p.number === 9);
-    expect(homeStriker, 'home #9 piece must exist').toBeDefined();
-    expect(homeStriker!.number).toBe(9);
+    const stSlotIndex = FORMATIONS['4-4-2'].slots.findIndex((s) => s.slotId === 'ST');
+    expect(stSlotIndex, '4-4-2 must have an ST slot').not.toBe(-1);
+    // Kicking-team striker is resolved by slot index (not by number lookup); its number
+    // must match the formation slot's own authored jerseyNumber.
+    expect(pieces[stSlotIndex]!.number).toBe(FORMATIONS['4-4-2'].slots[stSlotIndex]!.jerseyNumber);
     // Verify RCB jersey comes from slot (jerseyNumber=4), not whatever the squad player's number was
-    const homeRCB = pieces.find((p) => p.teamId === 'home' && p.number === 4);
-    expect(homeRCB, 'home #4 (RCB) piece must exist').toBeDefined();
+    const rcbSlotIndex = FORMATIONS['4-4-2'].slots.findIndex((s) => s.jerseyNumber === 4);
+    expect(rcbSlotIndex, '4-4-2 must have a jerseyNumber=4 slot').not.toBe(-1);
+    expect(pieces[rcbSlotIndex]!.number).toBe(4);
+  });
+
+  it('NUMBER-03: the anchored piece is identified by slot index, independently of the number it wears', () => {
+    // This test cannot be made to fail against the old number-keyed anchor implementation:
+    // all four formations author the ST slot with the same incidental jersey number
+    // (see formations.test.ts), so the number-keyed and slot-keyed lookups coincide today.
+    // Its value is locking the slot-keyed contract in place for any future formation that
+    // does NOT give its ST slot that same incidental jersey number.
+    const pieces = buildKickOffPieces('home', SELECTED_TEAMS, FORMATION_442);
+    const stSlotIndex = FORMATIONS['4-4-2'].slots.findIndex((s) => s.slotId === 'ST');
+    expect(stSlotIndex, '4-4-2 must have an ST slot').not.toBe(-1);
+    const anchoredPiece = pieces[stSlotIndex]!;
+
+    // (1) the piece at the home ST slot index is at the kick-off hex
+    expect(anchoredPiece.position).toEqual(PITCH_REGIONS.kickOffHex);
+
+    // (2) exactly one home piece sits on that hex
+    const homePiecesOnHex = pieces.filter(
+      (p) =>
+        p.teamId === 'home' &&
+        p.position.q === PITCH_REGIONS.kickOffHex.q &&
+        p.position.r === PITCH_REGIONS.kickOffHex.r,
+    );
+    expect(homePiecesOnHex.length).toBe(1);
+
+    // (3) the anchored piece's playerId equals the id of the pool player at the same
+    // slot index in the default squad order — proving the anchor identifies a SLOT OCCUPANT
+    const defaultHomeSquad = getSquadPlayers(SELECTED_TEAMS.home);
+    expect(anchoredPiece.playerId).toBe(defaultHomeSquad[stSlotIndex]!.id);
   });
 
   it('Test 7: FORMATIONS table is not mutated across two buildKickOffPieces calls', () => {
