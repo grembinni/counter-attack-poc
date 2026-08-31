@@ -321,12 +321,19 @@ function buildSquadPieces(
     }
   }
 
-  // Anchor jersey-#9 of the kicking team to the kick-off hex (Pitfall 2: use number, not role).
-  const kickingStriker = pieces.find((p) => p.teamId === attackingTeam && p.number === 9);
+  // Anchor the occupant of the attacking formation's slotId === 'ST' slot to the kick-off hex
+  // (D-07): this is deliberately POSITIONAL — the slot the manager assigned — not the piece's
+  // own PlayerPiece.role === 'ST' identity field, which can match zero or 2+ pieces once
+  // confirmedHomeOrder/confirmedAwayOrder places a non-striker in the ST slot. All four
+  // formations have exactly one ST slot, verified and locked by formations.test.ts.
+  const attackingSlots = attackingTeam === 'home' ? homeSlots : awaySlots;
+  const attackingSquad = attackingTeam === 'home' ? homeSquad : awaySquad;
+  const stSlotIndex = attackingSlots.findIndex((s) => s.slotId === 'ST');
+  const kickingStriker = stSlotIndex === -1 ? undefined : attackingSquad[stSlotIndex];
   if (!kickingStriker) {
     // WR-02: Log diagnostic if striker absent — game proceeds with pieces at formation positions.
     console.error(
-      `buildSquadPieces: missing jersey-#9 for attacking team=${attackingTeam} (selectedTeams: ${JSON.stringify(selectedTeams)})`,
+      `buildSquadPieces: no slotId === 'ST' slot found in attacking team=${attackingTeam}'s formation (${selectedFormation[attackingTeam]}) (selectedTeams: ${JSON.stringify(selectedTeams)})`,
     );
   } else {
     kickingStriker.position = { ...PITCH_REGIONS.kickOffHex };
@@ -3994,7 +4001,7 @@ export function applyRosterReposition(
  * Without this overlay, a goal or the half-time reset would resurrect a substituted-out
  * player (violating SUB-03/SUB-07) and wipe `redCarded`/`onPitch: false` (undoing D-08's
  * permanent headcount cap and returning a sent-off player to the pitch). Positions always
- * come from `resetPieces` (the kick-off formation, the +4 shift and the jersey-#9 anchor are
+ * come from `resetPieces` (the kick-off formation, the +4 shift and the ST-slot anchor are
  * already applied there, and jersey numbers are identical on both sides of the overlay);
  * identity and match state always come from `currentPieces`. Never touches `state.bench` —
  * the bench (including D-13's red-card entries) is not rebuilt by any reset. This plan only
