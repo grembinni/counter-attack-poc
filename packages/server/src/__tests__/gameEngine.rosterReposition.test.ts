@@ -60,8 +60,11 @@ const homeGK = () => BASE_PIECES.find((p) => p.teamId === 'home' && p.role === '
 const awayOutfielders = () => BASE_PIECES.filter((p) => p.teamId === 'away' && p.role !== 'GK');
 
 describe('applyRosterReposition', () => {
-  it('happy path: two outfield same-team pieces swap occupants; id/position/number unchanged', () => {
+  it('NUMBER-01/02: a repositioned player keeps their own jersey number (number follows the person, not the slot)', () => {
     const [a, b] = homeOutfielders();
+    // Guard: this assertion cannot pass vacuously if the fixture ever hands back two
+    // pieces that happen to share a number.
+    expect(a!.number).not.toBe(b!.number);
     const state = makeState();
 
     const result = applyRosterReposition(state, 'home', a!.id, b!.id);
@@ -77,13 +80,72 @@ describe('applyRosterReposition', () => {
     expect(newA.firstName).toBe(b!.firstName);
     expect(newB.firstName).toBe(a!.firstName);
 
-    // Slot-bound fields unchanged
+    // Slot-bound fields (id, position) stay bound to the slot — unchanged by this phase.
     expect(newA.id).toBe(a!.id);
     expect(newA.position).toEqual(a!.position);
-    expect(newA.number).toBe(a!.number);
     expect(newB.id).toBe(b!.id);
     expect(newB.position).toEqual(b!.position);
-    expect(newB.number).toBe(b!.number);
+
+    // Number travels with the PERSON (Phase 48, NUMBER-01/NUMBER-02): slot A is now
+    // occupied by person B, who brought their own number with them, and vice versa.
+    expect(newA.number).toBe(b!.number);
+    expect(newB.number).toBe(a!.number);
+  });
+
+  it('NUMBER-02: the ROSTER_REPOSITION event pairs each player name with the number that player still wears after the swap', () => {
+    const [a, b] = homeOutfielders();
+    const state = makeState();
+
+    const result = applyRosterReposition(state, 'home', a!.id, b!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const event = result.state.eventLog[result.state.eventLog.length - 1]!;
+    expect(event.type).toBe('ROSTER_REPOSITION');
+    if (event.type !== 'ROSTER_REPOSITION') return;
+
+    // The logged number for each name matches that SAME person's number in the
+    // post-swap state, looked up by identity (playerId), not by slot.
+    const postSwapA = result.state.pieces.find((p) => p.playerId === a!.playerId)!;
+    const postSwapB = result.state.pieces.find((p) => p.playerId === b!.playerId)!;
+
+    expect(event.playerAName).toBe(`${a!.firstName} ${a!.lastName}`);
+    expect(event.jerseyNumberA).toBe(postSwapA.number);
+    expect(event.playerBName).toBe(`${b!.firstName} ${b!.lastName}`);
+    expect(event.jerseyNumberB).toBe(postSwapB.number);
+  });
+
+  it('NUMBER-04: applyRosterContinuity preserves each person permanent number across a reset after a reposition', () => {
+    const [a, b] = homeOutfielders();
+    const state = makeState();
+    const result = applyRosterReposition(state, 'home', a!.id, b!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Stamp a deliberately non-slot-standard number onto the piece now holding person
+    // A's identity, so the assertion below cannot be satisfied by a slot-derived rebuild.
+    const postSwapPieces = result.state.pieces.map((p) =>
+      p.playerId === a!.playerId ? { ...p, number: 77 } : p,
+    );
+
+    const resetPieces = buildKickOffPieces(
+      'away',
+      { home: HOME_TEAM, away: AWAY_TEAM },
+      { home: '4-4-2', away: '4-4-2' },
+    );
+    const overlaid = applyRosterContinuity(resetPieces, postSwapPieces);
+
+    const overlaidA = overlaid.find((p) => p.playerId === a!.playerId)!;
+    const overlaidB = overlaid.find((p) => p.playerId === b!.playerId)!;
+    const resetA = resetPieces.find((p) => p.id === overlaidA.id)!;
+    const resetB = resetPieces.find((p) => p.id === overlaidB.id)!;
+
+    // Number survived the reset even though it was stamped to a non-slot-standard value.
+    expect(overlaidA.number).toBe(77);
+    expect(overlaidB.number).toBe(b!.number);
+    // Positions came from the reset array — proves continuity did run.
+    expect(overlaidA.position).toEqual(resetA.position);
+    expect(overlaidB.position).toEqual(resetB.position);
   });
 
   it('reset survival: applyRosterContinuity preserves the swapped identities while positions come from the reset array', () => {
