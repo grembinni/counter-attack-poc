@@ -115,3 +115,12 @@ None - no external service configuration required.
 ---
 *Phase: quick/260831-8rf*
 *Completed: 2026-08-31*
+
+## Self-Check: PASSED
+
+- FOUND: packages/client/src/components/LineupAssignmentScreen.tsx
+- FOUND: packages/client/src/components/LineupAssignmentScreen.test.tsx
+- FOUND: .planning/quick/260831-8rf-fix-draft-mode-gk-eligibility-highlighti/260831-8rf-SUMMARY.md
+- FOUND commit: cbaa78e3
+- FOUND commit: 02810e69
+- FOUND commit: 0ed8edca
