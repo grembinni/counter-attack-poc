@@ -163,7 +163,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
 | 47    | 6/6 | Complete    | 2026-08-31 |
-| 48    | Permanent Jersey Numbers                              | 6     | Not started |
+| 48    | 3/6 | In Progress|  |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
 | 51    | Rules-Fidelity Gap Analysis                           | TBD   | Not started |
@@ -225,9 +225,9 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 48-01-PLAN.md — `applyRosterReposition`: jersey number follows the person, not the slot (+ reset-survival regression lock)
-- [ ] 48-02-PLAN.md — `backfillBenchNumbers` helper + standard-mode bench numbers sourced from the crypto-backed 15-99 draw
-- [ ] 48-03-PLAN.md — Standard pregame bench stops displaying a client-fabricated `PoolPlayer.number`
+- [x] 48-01-PLAN.md — `applyRosterReposition`: jersey number follows the person, not the slot (+ reset-survival regression lock)
+- [x] 48-02-PLAN.md — `backfillBenchNumbers` helper + standard-mode bench numbers sourced from the crypto-backed 15-99 draw
+- [x] 48-03-PLAN.md — Standard pregame bench stops displaying a client-fabricated `PoolPlayer.number`
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -352,7 +352,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 6/6 plans complete
+**Plans:** 3/6 plans executed
 
 Plans:
 
