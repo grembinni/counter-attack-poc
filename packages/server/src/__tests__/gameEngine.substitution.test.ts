@@ -173,12 +173,16 @@ describe('applySubstitution', () => {
     expect(diffCount).toBe(1);
   });
 
-  it('SUB-03: substitute inherits id/number/position; playerId/name/attributes come from incoming player', () => {
+  it('NUMBER-02: substitute keeps their own bench number; id/position still come from the slot', () => {
     const state = makeSubState();
     const outPiece = homeOutfieldPiece();
     const inPoolPlayer = benchOutfielders[0]!;
     const inPlayerId = homeBenchBase[0]!.playerId;
     expect(inPlayerId).toBe(inPoolPlayer.id);
+    const inBenchEntry = state.bench!.home.find((e) => e.playerId === inPlayerId)!;
+    // Guard so this test cannot pass vacuously — the fixture's bench numbers (20/21/22)
+    // are deliberately disjoint from the starting XI's (1-11).
+    expect(inBenchEntry.jerseyNumber).not.toBe(outPiece.number);
 
     const result = applySubstitution(state, 'home', outPiece.id, inPlayerId);
     expect(result.ok).toBe(true);
@@ -186,13 +190,37 @@ describe('applySubstitution', () => {
 
     const newPiece = result.state.pieces.find((p) => p.id === outPiece.id)!;
     expect(newPiece.id).toBe(outPiece.id);
-    expect(newPiece.number).toBe(outPiece.number);
+    // NUMBER-02 (Phase 48/D-05): the substitute keeps their OWN bench jersey number, not
+    // the vacated slot's — a substitute can therefore legitimately wear a number outside
+    // 1-11 while on the pitch, mirroring real football.
+    expect(newPiece.number).toBe(inBenchEntry.jerseyNumber);
+    expect(newPiece.number).toBeGreaterThanOrEqual(15);
     expect(newPiece.position).toEqual(outPiece.position);
     expect(newPiece.playerId).toBe(inPoolPlayer.id);
     expect(newPiece.playerId).not.toBe(outPiece.playerId);
     expect(newPiece.firstName).toBe(inPoolPlayer.firstName);
     expect(newPiece.lastName).toBe(inPoolPlayer.lastName);
     expect(newPiece.pace).toBe(inPoolPlayer.pace);
+  });
+
+  it('NUMBER-02: the outgoing player bench entry carries their OWN number, not the incoming player old bench number', () => {
+    const state = makeSubState();
+    const outPiece = homeOutfieldPiece();
+    const inPlayerId = homeBenchBase[0]!.playerId;
+    const inBenchEntry = state.bench!.home.find((e) => e.playerId === inPlayerId)!;
+
+    const result = applySubstitution(state, 'home', outPiece.id, inPlayerId);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const outgoingBenchEntry = result.state.bench!.home.find(
+      (e) => e.playerId === outPiece.playerId,
+    )!;
+    expect(outgoingBenchEntry.status).toBe('subbedOut');
+    expect(outgoingBenchEntry.jerseyNumber).toBe(outPiece.number);
+    expect(outgoingBenchEntry.jerseyNumber).not.toBe(inBenchEntry.jerseyNumber);
+    expect(result.state.bench!.home.length).toBe(state.bench!.home.length);
+    expect(result.state.bench!.home.some((e) => e.playerId === inPlayerId)).toBe(false);
   });
 
   it('SUB-03: incoming piece has no inherited redCarded/yellowCards/injuryCount from the outgoing piece', () => {

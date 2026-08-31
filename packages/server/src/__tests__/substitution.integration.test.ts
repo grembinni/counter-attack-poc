@@ -605,11 +605,15 @@ describe('SUB-01/SUB-02/SUB-03: a manager-initiated substitution during a stoppa
     for (const state of [afterHomeA, afterHomeB]) {
       const slot = state.pieces.find((p) => p.id === outfield.id)!;
       expect(slot.playerId).toBe(incoming.playerId);
-      expect(slot.number).toBe(outfield.number);
+      // NUMBER-02: the on-pitch slot now wears the incoming player's OWN bench number,
+      // not the vacated slot's.
+      expect(slot.number).toBe(incoming.jerseyNumber);
       expect(slot.position).toEqual(outfield.position);
       expect(state.subsUsed).toEqual({ home: 1, away: 0 });
       const benchEntry = state.bench!.home.find((e) => e.playerId === outfield.playerId)!;
       expect(benchEntry.status).toBe('subbedOut');
+      // NUMBER-02: the outgoing player's new bench card carries their OWN number.
+      expect(benchEntry.jerseyNumber).toBe(outfield.number);
       expect(state.eventLog[state.eventLog.length - 1]!.type).toBe('SUBSTITUTION');
     }
 
