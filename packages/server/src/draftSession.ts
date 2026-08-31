@@ -406,6 +406,53 @@ export function assignBenchNumbers(benchIds: string[], rng: RandomIntFn): Record
 }
 
 /**
+ * Phase 48 / D-05 / NUMBER-05: fills in a jersey number for any bench id that doesn't have
+ * one yet, WITHOUT ever touching a number that's already assigned. This is the only
+ * sanctioned way to add bench numbers after the initial `assignBenchNumbers` draw — it
+ * deliberately never re-rolls an existing entry, encoding D-05's "fill gaps, never re-roll"
+ * rule in exactly one tested place (used by plan 48-05 to close the `DRAFT_REARRANGE`
+ * orphan-to-`0` gap).
+ *
+ * Idempotent: calling this twice in a row with the same inputs returns the identical
+ * `benchNumbers` contents the second time, and if nothing is missing the second call
+ * returns the exact same `session` reference (no allocation, no RNG call) — the load-bearing
+ * half of "never re-roll once assigned".
+ */
+export function backfillBenchNumbers(
+  session: DraftSession,
+  side: DraftSide,
+  rng: RandomIntFn,
+): DraftSession {
+  const { benchIds, benchNumbers } = getSide(session, side);
+
+  // Distinct ids missing a number. benchIds can legitimately contain a repeated id (pack
+  // generation only guards duplication within a round) — dedupe so a repeated id consumes
+  // exactly one number.
+  const missingIds = Array.from(
+    new Set(benchIds.filter((id) => !Object.prototype.hasOwnProperty.call(benchNumbers, id))),
+  );
+
+  if (missingIds.length === 0) {
+    return session;
+  }
+
+  const range = Array.from(
+    { length: BENCH_NUMBER_MAX - BENCH_NUMBER_MIN + 1 },
+    (_, i) => i + BENCH_NUMBER_MIN,
+  );
+  const inUse = new Set(Object.values(benchNumbers));
+  const available = range.filter((n) => !inUse.has(n));
+  const shuffled = shuffle(available, rng);
+
+  const drawn: Record<string, number> = {};
+  missingIds.forEach((id, index) => {
+    drawn[id] = shuffled[index]!;
+  });
+
+  return withSide(session, side, { benchNumbers: { ...benchNumbers, ...drawn } });
+}
+
+/**
  * D-14/T-29-PRIV/T-30-PRIV: projects the privacy-scoped per-player view — the single place
  * that decides what a given side is allowed to see. Never includes the opponent's pack or
  * any opponent-prefixed field; `DraftClientView`'s shape enforces this structurally. The

@@ -28,6 +28,7 @@ import {
   openNextRound,
   advanceSubStep,
   assignBenchNumbers,
+  backfillBenchNumbers,
   buildDraftView,
 } from './draftSession.js';
 
@@ -566,6 +567,80 @@ describe('assignBenchNumbers (D-15/D-16)', () => {
 
   it('returns an empty record for an empty bench', () => {
     expect(assignBenchNumbers([], randomInt)).toEqual({});
+  });
+});
+
+describe('backfillBenchNumbers (Phase 48, D-05)', () => {
+  it('an id present in benchIds but missing from benchNumbers receives a number in [15, 99]', () => {
+    const session = baseSession({
+      homeBenchIds: ['a'],
+      homeBenchNumbers: {},
+    });
+
+    const result = backfillBenchNumbers(session, 'home', randomInt);
+
+    expect(result.homeBenchNumbers['a']).toBeGreaterThanOrEqual(15);
+    expect(result.homeBenchNumbers['a']).toBeLessThanOrEqual(99);
+  });
+
+  it('an id already present in benchNumbers keeps its exact prior value across the call', () => {
+    const session = baseSession({
+      homeBenchIds: ['x', 'y'],
+      homeBenchNumbers: { x: 42 },
+    });
+
+    const result = backfillBenchNumbers(session, 'home', randomInt);
+
+    expect(result.homeBenchNumbers['x']).toBe(42);
+    expect(result.homeBenchNumbers['y']).toBeDefined();
+  });
+
+  it('the drawn number never equals an already-in-use number', () => {
+    const session = baseSession({
+      homeBenchIds: ['a', 'b', 'c', 'd', 'newId'],
+      homeBenchNumbers: { a: 15, b: 16, c: 17, d: 18 },
+    });
+
+    const result = backfillBenchNumbers(session, 'home', randomInt);
+
+    expect([15, 16, 17, 18]).not.toContain(result.homeBenchNumbers['newId']);
+  });
+
+  it('calling backfillBenchNumbers twice in a row is idempotent (same contents, same session reference)', () => {
+    const session = baseSession({
+      homeBenchIds: ['a'],
+      homeBenchNumbers: {},
+    });
+
+    const first = backfillBenchNumbers(session, 'home', randomInt);
+    const second = backfillBenchNumbers(first, 'home', randomInt);
+
+    expect(second.homeBenchNumbers).toEqual(first.homeBenchNumbers);
+    expect(second).toBe(first);
+  });
+
+  it('a benchIds array containing the same id twice produces exactly one entry for that id', () => {
+    const session = baseSession({
+      homeBenchIds: ['dup', 'dup'],
+      homeBenchNumbers: {},
+    });
+
+    const result = backfillBenchNumbers(session, 'home', randomInt);
+
+    expect(Object.keys(result.homeBenchNumbers)).toEqual(['dup']);
+  });
+
+  it("the other side's benchNumbers is untouched", () => {
+    const session = baseSession({
+      homeBenchIds: ['a'],
+      homeBenchNumbers: {},
+      awayBenchIds: ['b'],
+      awayBenchNumbers: { b: 55 },
+    });
+
+    const result = backfillBenchNumbers(session, 'home', randomInt);
+
+    expect(result.awayBenchNumbers).toEqual({ b: 55 });
   });
 });
 
