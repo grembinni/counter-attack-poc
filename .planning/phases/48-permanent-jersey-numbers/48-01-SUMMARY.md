@@ -105,6 +105,15 @@ None - no external service configuration required.
 - `applyRosterReposition` and `applyRosterContinuity` both now correctly implement number-follows-person for the reposition path; downstream plans in this phase (buildSquadPieces one-time locking, bench numbering, kickoff-striker lookup) are unaffected by and independent of this change.
 - Full server suite green (1637 passed, 1 skipped, 1 todo) — no regressions introduced.
 
+## Self-Check: PASSED
+
+- FOUND: packages/server/src/gameEngine.ts
+- FOUND: packages/server/src/__tests__/gameEngine.rosterReposition.test.ts
+- FOUND: .planning/phases/48-permanent-jersey-numbers/48-01-SUMMARY.md
+- FOUND: commit 3c367457 (test)
+- FOUND: commit ab4c0df3 (feat)
+- FOUND: commit 094e7d09 (docs: summary)
+
 ---
 *Phase: 48-permanent-jersey-numbers*
 *Completed: 2026-08-31*
