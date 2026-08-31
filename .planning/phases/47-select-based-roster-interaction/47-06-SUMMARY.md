@@ -151,6 +151,7 @@ Whole-workspace gate (all named in `<verification>`): `pnpm typecheck` exit 0 ·
 - FOUND commit `1a12afd0` (Task 1)
 - FOUND commit `4f818ec8` (Task 2)
 - FOUND commit `efff9933` (Task 3)
+- FOUND commit `e56db55d` (SUMMARY.md)
 
 ---
 *Phase: 47-select-based-roster-interaction*
