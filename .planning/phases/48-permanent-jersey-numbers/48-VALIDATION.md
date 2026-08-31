@@ -2,8 +2,8 @@
 phase: 48
 slug: permanent-jersey-numbers
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-31
 ---
 
@@ -79,11 +79,11 @@ created: 2026-08-31
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending — Task IDs/Plan/Wave annotated by the planner on 2026-08-31 (6 plans, 3 waves).
+**Approval:** approved 2026-08-31 — gsd-plan-checker verified all Dimension 8 checks pass across 6 plans / 3 waves; sign-off flipped after confirming plan-time annotations are accurate.

@@ -297,10 +297,11 @@ Not applicable — this is an internal game-logic correctness fix within a stabl
 
 ## Open Questions
 
-1. **Should the "fill gaps" bench-number backfill run eagerly on every `DRAFT_REARRANGE`, or lazily once at `LINEUP_CONFIRM`?**
+1. **(RESOLVED at plan time — see 48-05-PLAN.md) Should the "fill gaps" bench-number backfill run eagerly on every `DRAFT_REARRANGE`, or lazily once at `LINEUP_CONFIRM`?**
    - What we know: Both satisfy D-05's observable contract (never re-roll existing, only fill gaps for newly-bench players). Lazy (once, at `LINEUP_CONFIRM`) touches one call site; eager (on every rearrange) keeps `draftSession.homeBenchNumbers` always in sync with `homeBenchIds` but touches the `DRAFT_REARRANGE` handler too.
    - What's unclear: Whether any other code path reads `session.homeBenchNumbers` directly (for display during the draft/rearrange UI, before `LINEUP_CONFIRM`) — if so, lazy backfill would leave that intermediate UI showing a stale/missing number until confirm.
    - Recommendation: Grep the client for any pre-confirm bench-number display during draft rearrange; if found, prefer the eager approach. This research did not find such a client dependency in the time available — flagged for the planner to do a final confirm-or-deny grep before choosing.
+   - **Resolution:** The planner's grep found `LineupAssignmentScreen.tsx:1332` passes `benchNumbers={draftView.benchNumbers}` to `BenchCarousel`, which renders continuously through the post-`draftComplete`/pre-`LINEUP_CONFIRM` window — a pre-confirm consumer exists. Chose **eager**: plan 48-05 calls the backfill immediately after `applyRearrange` and before the `DRAFT_STATE_UPDATED` unicast, gated on `draftComplete` at the call site.
 
 ## Environment Availability
 
