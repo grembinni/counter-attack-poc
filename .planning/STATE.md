@@ -21,7 +21,7 @@ progress:
 Phase: 48
 Plan: Not started
 Status: Phase 47 complete — Phase 48 not started
-Last activity: 2026-08-31
+Last activity: 2026-08-31 - Completed quick task 260831-8rf: Fix draft-mode GK eligibility highlighting
 
 ## Project Reference
 
@@ -284,6 +284,7 @@ See: .planning/PROJECT.md (updated 2026-08-30 after v1.7 milestone completion)
 | 260727-o85             | 2026-07-27 | Change KickOffSetupPanel.tsx placement-valid status text to "Setup your players for kickoff." (phase 35 UAT feedback)                                                                                          |
 | 260816-bn5             | 2026-08-16 | Fix two knip findings: dropped unused `export` from `triggerFoulFreeKick` (self-file usage only); pruned 6 redundant `entry` patterns from root `knip.json` — `pnpm knip` now exits clean                      |
 | 260823-akw             | 2026-08-23 | Narrow random Referee Leniency roll from 1-6 to 2-5 at match start (ahead of Phase 44); corrected stale 1-6 range docs in gameEngine.ts, shared types, README, and REFEREE-03                                  |
+| 260831-8rf             | 2026-08-31 | Fix draft-mode GK eligibility highlighting to respect the GK slot rule in the highlight itself, not just at click-time rejection (Phase 47 live-UAT gap); removed unreachable client-side reject-with-message path, kept server-authoritative gameError backstop |
 
 ## Deferred Items (acknowledged at milestone close 2026-08-30, v1.7)
 
