@@ -1005,14 +1005,31 @@ export function registerRoomHandlers(
             homeSquadRemainder.length > 0 ? homeSquadRemainder : getGenericBenchPlayers('home');
           const awayBenchPlayers =
             awaySquadRemainder.length > 0 ? awaySquadRemainder : getGenericBenchPlayers('away');
+          // Phase 48 / D-02 / D-04: standard and draft rooms now use the identical
+          // crypto-backed 15-99 shuffle-without-replacement draw (assignBenchNumbers,
+          // same helper the draft-complete transition above already calls with the same
+          // randomInt). PoolPlayer.number (packages/shared/src/teams.ts:25-26) is a
+          // squad-relative identity field and is never a match jersey number for a bench
+          // player. assignBenchNumbers (not backfillBenchNumbers) is correct here: this
+          // is the one-time initial draw for a bench whose full membership is already
+          // known and which has no pre-existing numbers, so the fill-gaps wrapper would
+          // be a no-op with extra indirection — do not "upgrade" this call.
+          const homeBenchNumbers = assignBenchNumbers(
+            homeBenchPlayers.map((p) => p.id),
+            randomInt,
+          );
+          const awayBenchNumbers = assignBenchNumbers(
+            awayBenchPlayers.map((p) => p.id),
+            randomInt,
+          );
           confirmedHomeBench = homeBenchPlayers.map((p) => ({
             playerId: p.id,
-            jerseyNumber: p.number,
+            jerseyNumber: homeBenchNumbers[p.id]!,
             status: 'available' as const,
           }));
           confirmedAwayBench = awayBenchPlayers.map((p) => ({
             playerId: p.id,
-            jerseyNumber: p.number,
+            jerseyNumber: awayBenchNumbers[p.id]!,
             status: 'available' as const,
           }));
         }

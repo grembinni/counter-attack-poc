@@ -109,8 +109,12 @@ export type BenchEntry = {
   /** A `PLAYER_POOL` id (`p001`-style), NOT a `PlayerPiece.id`. */
   playerId: string;
   /**
-   * The bench shirt number. Draft rooms: `DraftSession.*BenchNumbers`; standard rooms:
-   * the pool player's own `number`; D-13 red-card entries: the sent-off piece's `number`.
+   * The bench shirt number, drawn once as a random distinct value in `[15, 99]` via
+   * `assignBenchNumbers` for BOTH draft rooms (at the `draftComplete` transition, surfaced
+   * through `DraftSession.*BenchNumbers`) and standard rooms (at `LINEUP_CONFIRM`); never
+   * re-rolled once assigned (Phase 48 / D-05 / NUMBER-05). D-13 red-card entries instead
+   * carry the sent-off piece's own permanent `PlayerPiece.number`, which can legitimately
+   * be a 1-11 starter number.
    */
   jerseyNumber: number;
   status: BenchEntryStatus;
