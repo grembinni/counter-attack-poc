@@ -8,24 +8,25 @@
  * DraftPackCarousel (D-21 — DraftCardBody + TIER_CARD_CLASS + carouselViewport/
  * carouselTrack/carouselNav).
  *
- * Phase 47 (D-06/D-07/D-10/D-11, ROSTER-08): converted from a native
- * HTML5 drag source + drop target to a click-select SOURCE + click-completion
- * TARGET. Unlike the draft-pack row (a click source only), the bench is BOTH
- * a click-select source — clicking an available bench card reports its
- * `benchIndex` via `onCardClick` (mid-match substitution bench card; draft
- * bench card being rearranged into a slot) — AND a click-completion target —
- * clicking the bench container itself reports completion via
- * `onBenchAreaClick` (draft pack->bench pick, draft slot->bench move).
+ * Phase 47 (D-06/D-07/D-10/D-11, ROSTER-08): converted from the retired
+ * native HTML5 pointer-carry source + drop target model to a click-select
+ * SOURCE + click-completion TARGET. Unlike the draft-pack row (a click
+ * source only), the bench is BOTH a click-select source — clicking an
+ * available bench card reports its `benchIndex` via `onCardClick`
+ * (mid-match substitution bench card; draft bench card being rearranged
+ * into a slot) — AND a click-completion target — clicking the bench
+ * container itself reports completion via `onBenchAreaClick` (draft
+ * pack->bench pick, draft slot->bench move).
  *
  * Both `onCardClick(benchIndex)` and `onBenchAreaClick()` are intentionally
- * payload-free, by design (mirrors the pre-Phase-47 drag contract exactly).
- * This component holds zero selection-resolution state of its own —
- * `selectedCardId` and `benchAreaEligible` are entirely parent-owned
+ * payload-free, by design (mirrors the retired pointer-carry contract
+ * exactly). This component holds zero selection-resolution state of its
+ * own — `selectedCardId` and `benchAreaEligible` are entirely parent-owned
  * (LineupAssignmentScreen). Resolving WHICH card is selected, its origin,
  * and whether the bench is currently a legal completion target is the
  * parent's job. This component must never infer selection/eligibility from
  * anything besides the props it's given (Phase 47 / D-10/D-11; mirrors this
- * component's own pre-Phase-47 "must never read dataTransfer" convention).
+ * component's own retired "must never read dataTransfer" convention).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { TeamId, TieredPoolPlayer } from '@counter-attack/shared';
@@ -62,8 +63,8 @@ type BenchCarouselProps = {
   disabled?: boolean;
   /** Phase 47 (D-11): fires when an available bench card is clicked or activated
    * via Enter/Space, reporting that card's bench index only — the parent resolves
-   * which card/origin this refers to (payload-free by design, same as the old
-   * onCardDragStart contract). */
+   * which card/origin this refers to (payload-free by design, same as the
+   * retired pointer-carry-start contract it replaces). */
   onCardClick: (benchIndex: number) => void;
   /** Phase 47 (D-11): fires when the bench container itself is clicked while the
    * parent has marked it an eligible completion target (`benchAreaEligible`).
@@ -99,7 +100,7 @@ export function BenchCarousel({
   benchAreaEligible,
 }: BenchCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  // D-19/Pitfall 7: drag/scroll UI state is local — never in Zustand.
+  // D-19/Pitfall 7: scroll UI state is local — never in Zustand.
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -134,9 +135,9 @@ export function BenchCarousel({
     setTimeout(updateScrollState, 300);
   }
 
-  /** Phase 47 (D-11/T-47-06): preserves the pre-Phase-47 drag-source guards
-   * verbatim, re-expressed for clicks — a disabled bench never starts a
-   * selection, and an OUT or RED CARD bench card is never a selection
+  /** Phase 47 (D-11/T-47-06): preserves the retired pointer-carry-source
+   * guards verbatim, re-expressed for clicks — a disabled bench never starts
+   * a selection, and an OUT or RED CARD bench card is never a selection
    * source, regardless of the badge that's shown for it. */
   function handleCardClick(benchIndex: number, cardId: string) {
     if (disabled === true) return;

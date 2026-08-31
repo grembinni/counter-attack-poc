@@ -302,11 +302,6 @@
   letter-spacing: 0.08em;
 }
 
-.benchPlaceholders {
-  display: flex;
-  gap: 8px;
-}
-
 .benchSlot {
   border: 1px dashed var(--color-border);
   border-radius: 4px;
