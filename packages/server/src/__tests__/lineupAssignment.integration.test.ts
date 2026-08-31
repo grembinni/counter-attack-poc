@@ -385,7 +385,7 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
     expect(stateA.roomCode).toBe(stateB.roomCode);
   }, 8000);
 
-  it("Phase 46 D-05..D-09: a STANDARD room's first broadcast GameState has a 5-player generic placeholder bench per team", async () => {
+  it("Phase 46 D-05..D-09: a STANDARD room's first broadcast GameState has a 5-player generic placeholder bench per team (Phase 48 bench numbering)", async () => {
     const { clientA, clientB } = await setupThroughUniformConfirm();
 
     const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
@@ -405,8 +405,8 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
 
     for (const entry of [...homeBench, ...awayBench]) {
       expect(entry.status).toBe('available');
-      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(12);
-      expect(entry.jerseyNumber).toBeLessThanOrEqual(16);
+      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(15);
+      expect(entry.jerseyNumber).toBeLessThanOrEqual(99);
     }
 
     const homeRoles = new Set(
@@ -420,6 +420,44 @@ describe('Phase 24 — ASSIGN-05: LINEUP_CONFIRM both-confirm gate', () => {
 
     expect(stateA.subsUsed).toEqual({ home: 0, away: 0 });
     expect(stateA.addedTimeBonus).toBe(0);
+  }, 8000);
+
+  it('NUMBER-05/D-02/D-04: a STANDARD room bench entry wears a random 15-99 number that never collides with a starting-XI number', async () => {
+    const { clientA, clientB } = await setupThroughUniformConfirm();
+
+    const readyAPromise = oncePromise(clientA, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    const readyBPromise = oncePromise(clientB, ServerEvents.LINEUP_ASSIGNMENT_READY, 2000);
+    clientB.emit(ClientEvents.UNIFORM_CONFIRM, 'crew', 'bar-diagonal', '4-4-2', 'away');
+    const [[homeAssignment], [awayAssignment]] = await Promise.all([readyAPromise, readyBPromise]);
+
+    const gameStateAPromise = oncePromise(clientA, ServerEvents.GAME_STATE, 2000);
+    clientA.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: homeAssignment });
+    clientB.emit(ClientEvents.LINEUP_CONFIRM, { confirmedOrder: awayAssignment });
+    const [stateA] = await gameStateAPromise;
+
+    const allBenchNums: number[] = [];
+    for (const side of ['home', 'away'] as const) {
+      const bench = stateA.bench?.[side] ?? [];
+      const nums = bench.map((e) => e.jerseyNumber);
+      allBenchNums.push(...nums);
+
+      for (const n of nums) {
+        expect(n).toBeGreaterThanOrEqual(15);
+        expect(n).toBeLessThanOrEqual(99);
+      }
+
+      expect(new Set(nums).size).toBe(nums.length);
+
+      const starterNums = stateA.pieces.filter((p) => p.teamId === side).map((p) => p.number);
+      const collision = nums.filter((n) => starterNums.includes(n));
+      expect(collision).toEqual([]);
+    }
+
+    // Structural proof the number no longer comes from PoolPlayer.number: the generic
+    // bench pool is authored as exactly 12-16 per side, so an all-in-12-16 result under
+    // a 15-99 draw across 10 entries is effectively impossible and would indicate the old
+    // code path.
+    expect(allBenchNums.some((n) => n < 12 || n > 16)).toBe(true);
   }, 8000);
 
   it('D-11: GAME_STATE pieces reflect confirmed (possibly swapped) assignment order', async () => {

@@ -990,7 +990,7 @@ describe('SETTINGS-04: substitution succeeds regardless of the four v1.6 toggle 
 // ---------------------------------------------------------------------------
 
 describe('Phase 46 D-05..D-09: a Standard-mode room reaches a live match with a generic placeholder bench', () => {
-  it('Phase 46: bench.home/away each carry the 5-player generic placeholder roster (numbers 12-16, one per role), the broadcast state is otherwise fully valid, and a generic bench outfielder substitutes onto the pitch end to end', async () => {
+  it('Phase 46: bench.home/away each carry the 5-player generic placeholder roster (random 15-99 numbers, one per role), the broadcast state is otherwise fully valid, and a generic bench outfielder substitutes onto the pitch end to end', async () => {
     const { clientA, roomCode, state } = await setupStandardMatch();
 
     const homeBench = state.bench?.home ?? [];
@@ -1005,8 +1005,8 @@ describe('Phase 46 D-05..D-09: a Standard-mode room reaches a live match with a 
 
     for (const entry of [...homeBench, ...awayBench]) {
       expect(entry.status).toBe('available');
-      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(12);
-      expect(entry.jerseyNumber).toBeLessThanOrEqual(16);
+      expect(entry.jerseyNumber).toBeGreaterThanOrEqual(15);
+      expect(entry.jerseyNumber).toBeLessThanOrEqual(99);
     }
     const homeRoles = new Set(
       homeBench.map((e) => PLAYER_POOL.find((p) => p.id === e.playerId)?.role),
