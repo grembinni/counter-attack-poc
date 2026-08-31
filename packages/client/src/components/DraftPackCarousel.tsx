@@ -8,7 +8,8 @@
  *
  * Cards in this row are SELECTION SOURCES ONLY (Phase 47 / D-11) — clicking a
  * card reports its id via `onCardClick`; there is no click-to-complete target
- * on these cards themselves and no dataTransfer/drag involvement of any kind.
+ * on these cards themselves and no dataTransfer/pointer-carry involvement of
+ * any kind.
  * Pack-card selection mirrors mid-match substitution's bench-first pattern
  * (CONTEXT.md D-11): select a pack card (green) -> eligible slots/bench turn
  * blue -> click completes the pick. The parent screen owns all selection
@@ -58,10 +59,10 @@ type DraftCardBodyProps = {
    * (BenchCarousel passes benchNumbers once the draft completes). */
   jerseyNumber?: number;
   /** Phase 47 (D-11): true when this card responds to click/keyboard input —
-   * the click-select replacement for the old `draggable` gate. Required
-   * (unlike the optional selection props below) because every caller must
-   * make an explicit interactivity decision, mirroring today's `draggable`
-   * requiredness. */
+   * the click-select replacement for the retired pointer-carry-enabled gate.
+   * Required (unlike the optional selection props below) because every
+   * caller must make an explicit interactivity decision, mirroring that
+   * retired gate's requiredness. */
   interactive: boolean;
   /** Phase 47: fires when the card is clicked or activated via Enter/Space
    * while interactive/eligible. Omitted entirely (not just a no-op) when the
@@ -126,9 +127,9 @@ export function DraftCardBody({
 }: DraftCardBodyProps) {
   const isGK = card.role === 'GK';
   const isUnavailable = unavailable === true || redCarded === true;
-  /** Phase 47: mirrors the pre-Phase-47 unavailable-forcing rule (an
+  /** Phase 47: mirrors the retired unavailable-forcing rule (an
    * unavailable card never responds to input regardless of what the caller
-   * passed for `interactive`), ported from the old drag-gate equivalent. */
+   * passed for `interactive`), ported from that retired gate's equivalent. */
   const isInteractive = isUnavailable ? false : interactive;
   /** Phase 47: selected wins over eligible — never both classes at once. */
   let className = isUnavailable
@@ -237,7 +238,7 @@ type DraftPackCarouselProps = {
   /** D-12: true while waiting for the opponent's pick — row dims and stops accepting clicks. */
   disabled: boolean;
   /** Phase 47 (D-11): fires when a pack card is clicked (the pick-selection
-   * signal, replacing the old drag-start signal). */
+   * signal, replacing the retired pointer-carry-start signal). */
   onCardClick: (cardId: string) => void;
   /** Phase 47: the currently-selected pack card, owned by the parent screen —
    * applies the green .statCardSelected ring to the matching card. */
