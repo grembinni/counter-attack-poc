@@ -12,13 +12,13 @@ Requirements for the v1.8 milestone. Each maps to roadmap phases.
 Replaces drag-and-drop with the app's existing click-to-select interaction model, applied to the mid-match roster screen's two modes (positioning and substitution).
 
 - [x] **ROSTER-01**: User can select a player card on the mid-match roster screen by clicking it (green outline = selected state)
-- [ ] **ROSTER-02**: Selecting a player highlights all eligible swap/substitution targets in blue
-- [ ] **ROSTER-03**: Clicking the selected player again deselects it and clears the blue eligible-target highlights
+- [x] **ROSTER-02**: Selecting a player highlights all eligible swap/substitution targets in blue
+- [x] **ROSTER-03**: Clicking the selected player again deselects it and clears the blue eligible-target highlights
 - [x] **ROSTER-04**: Clicking an eligible blue target completes the swap (positioning mode) or stages the substitution (substitution mode), matching today's existing confirm flow
-- [ ] **ROSTER-05**: Positioning-mode and substitution-mode eligibility/guard logic remain implemented as separate functions, not merged into one handler
+- [x] **ROSTER-05**: Positioning-mode and substitution-mode eligibility/guard logic remain implemented as separate functions, not merged into one handler
 - [x] **ROSTER-06**: All native drag-and-drop code (drag state, handlers, types) removed from `LineupAssignmentScreen.tsx`, zero dead code per `knip`
-- [ ] **ROSTER-07**: Standard pregame lineup screen's slot-swap flow (`LineupAssignmentScreen.tsx`, non-draft mode) replaces drag-and-drop with the same click-to-select model (green selected / blue eligible targets)
-- [ ] **ROSTER-08**: Draft-mode pack carousel and bench/slot rearrange (pick, slot↔slot, slot↔bench) replace drag-and-drop with click-to-select; the pack row behaves like the mid-match bench does in substitution mode (select pack card, eligible slots/bench highlight blue, click completes the pick)
+- [x] **ROSTER-07**: Standard pregame lineup screen's slot-swap flow (`LineupAssignmentScreen.tsx`, non-draft mode) replaces drag-and-drop with the same click-to-select model (green selected / blue eligible targets)
+- [x] **ROSTER-08**: Draft-mode pack carousel and bench/slot rearrange (pick, slot↔slot, slot↔bench) replace drag-and-drop with click-to-select; the pack row behaves like the mid-match bench does in substitution mode (select pack card, eligible slots/bench highlight blue, click completes the pick)
 
 ### Permanent Jersey Numbers
 
@@ -89,13 +89,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ROSTER-01 | Phase 47 | Complete |
-| ROSTER-02 | Phase 47 | Pending |
-| ROSTER-03 | Phase 47 | Pending |
+| ROSTER-02 | Phase 47 | Complete |
+| ROSTER-03 | Phase 47 | Complete |
 | ROSTER-04 | Phase 47 | Complete |
-| ROSTER-05 | Phase 47 | Pending |
+| ROSTER-05 | Phase 47 | Complete |
 | ROSTER-06 | Phase 47 | Complete |
-| ROSTER-07 | Phase 47 | Pending |
-| ROSTER-08 | Phase 47 | Pending |
+| ROSTER-07 | Phase 47 | Complete |
+| ROSTER-08 | Phase 47 | Complete |
 | NUMBER-01 | Phase 48 | Pending |
 | NUMBER-02 | Phase 48 | Pending |
 | NUMBER-03 | Phase 48 | Pending |
