@@ -162,7 +162,7 @@ Full archive: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · [Requi
 
 | Phase | Name                                                 | Plans | Status      |
 | ----- | ----------------------------------------------------- | ----- | ----------- |
-| 47    | 3/6 | In Progress|  |
+| 47    | 5/6 | In Progress|  |
 | 48    | Permanent Jersey Numbers                              | TBD   | Not started |
 | 49    | GK Box-Entry Sequencing & Final-Third Confirm Fixes   | TBD   | Not started |
 | 50    | Foul→Injury→Booking Banner Sequencing                 | TBD   | Not started |
@@ -199,8 +199,8 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 47-04-PLAN.md — `LineupAssignmentScreen.test.tsx` rewrite + new ROSTER-03/05/07 and D-07/D-08 regression tests
-- [ ] 47-05-PLAN.md — `GameBoard.test.tsx` + `CardInjuryBadge.crossSurface.test.tsx` collateral click conversion
+- [x] 47-04-PLAN.md — `LineupAssignmentScreen.test.tsx` rewrite + new ROSTER-03/05/07 and D-07/D-08 regression tests
+- [x] 47-05-PLAN.md — `GameBoard.test.tsx` + `CardInjuryBadge.crossSurface.test.tsx` collateral click conversion
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -335,7 +335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 3/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 
